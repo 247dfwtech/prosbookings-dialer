@@ -22,11 +22,23 @@ const upload = multer({
   },
 });
 
-router.post('/', upload.single('file'), (req, res) => {
-  if (!req.file) return res.status(400).json({ error: 'No file or invalid type (use .xls or .xlsx)' });
-  const uploadId = path.basename(req.file.filename, path.extname(req.file.filename));
-  saveUploadMeta(uploadId, { originalName: req.file.originalname || 'spreadsheet.xlsx', path: req.file.path });
-  res.json({ uploadId, originalName: req.file.originalname || 'spreadsheet.xlsx' });
+router.post('/', (req, res, next) => {
+  upload.single('file')(req, res, (err) => {
+    if (err) {
+      if (err.code === 'LIMIT_FILE_SIZE') return res.status(400).json({ error: 'File too large (max 10MB)' });
+      console.error('Upload multer error:', err);
+      return res.status(500).json({ error: err.message || 'Upload failed' });
+    }
+    if (!req.file) return res.status(400).json({ error: 'No file or invalid type (use .xls or .xlsx)' });
+    try {
+      const uploadId = path.basename(req.file.filename, path.extname(req.file.filename));
+      saveUploadMeta(uploadId, { originalName: req.file.originalname || 'spreadsheet.xlsx', path: req.file.path });
+      res.json({ uploadId, originalName: req.file.originalname || 'spreadsheet.xlsx' });
+    } catch (e) {
+      console.error('Upload save error:', e);
+      res.status(500).json({ error: e.message || 'Upload failed' });
+    }
+  });
 });
 
 router.get('/list', (req, res) => res.json(listUploads()));
