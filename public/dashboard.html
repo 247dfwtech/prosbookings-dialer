@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Dashboard – Prosbookings Dialer</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body class="dashboard">
+  <div class="dashboard-header">
+    <h1>Prosbookings Dialer</h1>
+    <button type="button" class="btn-logout" id="btn-logout">Log out</button>
+  </div>
+
+  <section class="upload-section">
+    <h2>Upload spreadsheet</h2>
+    <input type="file" id="file-input" accept=".xlsx,.xls">
+    <button type="button" class="btn-secondary" id="btn-upload">Upload</button>
+    <div class="file-list" id="file-list">No files uploaded.</div>
+  </section>
+
+  <section class="spreadsheet-view-section" id="spreadsheet-view-section" style="display: none;">
+    <h2>Spreadsheet: <span id="sheet-view-title"></span> <button type="button" class="btn-secondary" id="btn-refresh-sheet">Refresh</button></h2>
+    <div class="sheet-table-wrap">
+      <table class="sheet-table" id="sheet-table"></table>
+    </div>
+  </section>
+
+  <div class="dialer-grid" id="dialer-grid"></div>
+
+  <script src="dashboard.js"></script>
+</body>
+</html>
