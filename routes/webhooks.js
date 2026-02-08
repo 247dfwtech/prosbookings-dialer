@@ -5,7 +5,7 @@
 
 const express = require('express');
 const router = express.Router();
-const { getUploadMeta } = require('../lib/upload-store');
+const { getUploadMeta, parseExternalId } = require('../lib/upload-store');
 const { updateRow, findRowByPhone } = require('../lib/spreadsheet');
 const { listUploads } = require('../lib/upload-store');
 const scheduler = require('../lib/scheduler');
@@ -30,10 +30,9 @@ router.post('/vapi', (req, res) => {
     const externalId = customer.externalId || '';
 
     if (externalId) {
-      const parts = externalId.split(':');
-      if (parts.length >= 3) {
-        const [dialerId, uploadId, rowIndexStr] = parts;
-        const rowIndex = parseInt(rowIndexStr, 10);
+      const parsed = parseExternalId(externalId);
+      if (parsed) {
+        const { dialerId, uploadId, rowIndex } = parsed;
         if (dialerId !== 'test') {
           recordCallEnded(dialerId, endedReason);
         }
