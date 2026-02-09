@@ -15,8 +15,7 @@ function validateEnv() {
   }
   const isProduction = process.env.NODE_ENV === 'production';
   if (isProduction && (!process.env.SESSION_SECRET || process.env.SESSION_SECRET === 'change-me')) {
-    console.error('In production, set SESSION_SECRET to a long random string (e.g. run: openssl rand -hex 32)');
-    process.exit(1);
+    console.warn('WARNING: In production, set SESSION_SECRET in Railway Variables to a long random string (e.g. openssl rand -hex 32)');
   }
 }
 validateEnv();
