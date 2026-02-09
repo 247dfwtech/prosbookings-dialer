@@ -68,7 +68,7 @@ const { getState } = require('./lib/store');
 const scheduler = require('./lib/scheduler');
 
 const server = app.listen(PORT, () => {
-  console.log(`Prosbookings Dialer at http://localhost:${PORT} (VAPI_API_KEY set: ${!!process.env.VAPI_API_KEY})`);
+  console.log(`Adrian's COLD Calling Beast at http://localhost:${PORT} (VAPI_API_KEY set: ${!!process.env.VAPI_API_KEY})`);
   const state = getState();
   for (const id of ['dialer1', 'dialer2', 'dialer3']) {
     if (state.dialers[id]?.running) {
