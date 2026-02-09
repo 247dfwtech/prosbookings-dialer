@@ -41,7 +41,7 @@ Generate password hash: `node scripts/hash-password.js`.
 
 - `SITE_PASSWORD_HASH` – bcrypt hash of dashboard password (required).
 - `VAPI_API_KEY` – VAPI API key (required for calls).
-- `SESSION_SECRET` – Secret for signing session cookies. In production (when `NODE_ENV=production`), this is required and must not be `change-me`. Use a long random string (e.g. `openssl rand -hex 32`).
+- `SESSION_SECRET` – Optional. Secret for signing session cookies; if unset, a default is used. For production you can set this to a long random string (e.g. `openssl rand -hex 32`) in Railway Variables.
 - **Email (booking confirmations):** Use either:
   - **Microsoft / Outlook / Office 365 (SMTP):** `SMTP_HOST`, `SMTP_PORT` (default 587), `SMTP_USER`, `SMTP_PASS`, `FROM_EMAIL`. For Outlook.com use `smtp-mail.outlook.com`; for Office 365 use `smtp.office365.com`. Turn on 2FA and create an **App password** at account.microsoft.com (Security) and use that as `SMTP_PASS`.
   - **Resend:** `RESEND_API_KEY` and `FROM_EMAIL` (optional).
