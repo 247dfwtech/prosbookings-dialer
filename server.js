@@ -19,6 +19,10 @@ const { requireAuth } = require('./routes/auth');
 const app = express();
 const PORT = process.env.PORT || 3000;
 
+const FileStore = require('session-file-store')(session);
+const sessionDir = path.join(DATA_DIR, 'sessions');
+if (!fs.existsSync(sessionDir)) fs.mkdirSync(sessionDir, { recursive: true });
+
 app.use(cookieParser());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
@@ -28,6 +32,7 @@ app.use(
     resave: false,
     saveUninitialized: false,
     cookie: { httpOnly: true, maxAge: 7 * 24 * 60 * 60 * 1000 },
+    store: new FileStore({ path: sessionDir }),
   })
 );
 
@@ -48,6 +53,16 @@ app.get('/', (req, res) => {
 
 app.get('/api/health', (req, res) => res.json({ ok: true }));
 
+const { getState } = require('./lib/store');
+const scheduler = require('./lib/scheduler');
+
 app.listen(PORT, () => {
-  console.log(`Prosbookings Dialer at http://localhost:${PORT}`);
+  console.log(`Prosbookings Dialer at http://localhost:${PORT} (VAPI_API_KEY set: ${!!process.env.VAPI_API_KEY})`);
+  const state = getState();
+  for (const id of ['dialer1', 'dialer2', 'dialer3']) {
+    if (state.dialers[id]?.running) {
+      console.log(`[startup] Restoring running dialer ${id}`);
+      scheduler.startDialer(id);
+    }
+  }
 });
