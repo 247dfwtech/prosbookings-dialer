@@ -5,6 +5,8 @@
 const express = require('express');
 const router = express.Router();
 const { getConfig, updateConfig, getState, updateState } = require('../lib/store');
+const { getUploadMeta } = require('../lib/upload-store');
+const { getNextNotCalledRow } = require('../lib/spreadsheet');
 const { listAssistants, listPhoneNumbers, createCall } = require('../lib/vapi');
 const scheduler = require('../lib/scheduler');
 const { spin, substituteVariables } = require('../lib/spin');
@@ -32,6 +34,40 @@ router.get('/state', (req, res) => {
   res.json(getState());
 });
 
+router.get('/next-up', (req, res) => {
+  const config = getConfig();
+  const state = getState();
+  const nextUp = {};
+  for (const id of ['dialer1', 'dialer2', 'dialer3']) {
+    const dialerConfig = config.dialers[id];
+    if (!dialerConfig?.spreadsheetId || !state.dialers[id]?.running) {
+      nextUp[id] = null;
+      continue;
+    }
+    const meta = getUploadMeta(dialerConfig.spreadsheetId);
+    if (!meta?.path) {
+      nextUp[id] = null;
+      continue;
+    }
+    try {
+      const next = getNextNotCalledRow(meta.path);
+      if (!next) {
+        nextUp[id] = { done: true };
+        continue;
+      }
+      nextUp[id] = {
+        firstName: next.row.firstName,
+        lastName: next.row.lastName,
+        phone: next.row.phone,
+        rowIndex: next.rowIndex,
+      };
+    } catch (e) {
+      nextUp[id] = null;
+    }
+  }
+  res.json(nextUp);
+});
+
 router.get('/vapi-info', async (req, res) => {
   try {
     const [assistants, phoneNumbers] = await Promise.all([
@@ -57,6 +93,7 @@ router.post('/start/:dialerId', (req, res) => {
   }
   updateState((s) => {
     s.dialers[dialerId].running = true;
+    s.dialers[dialerId].paused = false;
     return s;
   });
   scheduler.startDialer(dialerId);
@@ -70,13 +107,39 @@ router.post('/stop/:dialerId', (req, res) => {
   }
   updateState((s) => {
     s.dialers[dialerId].running = false;
+    s.dialers[dialerId].paused = false;
     return s;
   });
   scheduler.stopDialer(dialerId);
   res.json({ ok: true, running: false });
 });
 
+router.post('/pause/:dialerId', (req, res) => {
+  const { dialerId } = req.params;
+  if (!['dialer1', 'dialer2', 'dialer3'].includes(dialerId)) {
+    return res.status(400).json({ error: 'Invalid dialerId' });
+  }
+  updateState((s) => {
+    s.dialers[dialerId].paused = true;
+    return s;
+  });
+  res.json({ ok: true, paused: true });
+});
+
+router.post('/resume/:dialerId', (req, res) => {
+  const { dialerId } = req.params;
+  if (!['dialer1', 'dialer2', 'dialer3'].includes(dialerId)) {
+    return res.status(400).json({ error: 'Invalid dialerId' });
+  }
+  updateState((s) => {
+    s.dialers[dialerId].paused = false;
+    return s;
+  });
+  res.json({ ok: true, paused: false });
+});
+
 router.post('/test-call', async (req, res) => {
+  console.log('[test-call] Request received', { body: req.body });
   const { dialerId, firstName, address, phone } = req.body || {};
   if (!dialerId || !['dialer1', 'dialer2', 'dialer3'].includes(dialerId)) {
     return res.status(400).json({ error: 'Invalid dialerId' });
@@ -105,7 +168,8 @@ router.post('/test-call', async (req, res) => {
     console.log('[test-call] variableValues', variableValues, 'voicemailMessage (first 120 chars)', (voicemailMessage || '').slice(0, 120));
   }
   try {
-    await createCall({
+    console.log('[test-call] Placing call for', dialerId, 'to', phone, 'assistant', dialerConfig.assistantId, 'phoneNumberId', phoneNumberId);
+    const call = await createCall({
       assistantId: dialerConfig.assistantId,
       phoneNumberId,
       customerNumber: phone,
@@ -114,9 +178,10 @@ router.post('/test-call', async (req, res) => {
       variableValues,
       voicemailMessage,
     });
-    res.json({ ok: true, message: 'Test call placed' });
+    console.log('[test-call] VAPI accepted call id:', call?.id || call);
+    res.json({ ok: true, message: 'Test call placed', callId: call?.id });
   } catch (e) {
-    console.error('test-call', e);
+    console.error('[test-call] Failed:', e.message, e.stack || '');
     res.status(500).json({ error: e.message || 'Failed to place test call' });
   }
 });

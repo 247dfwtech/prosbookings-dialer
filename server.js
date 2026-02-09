@@ -5,6 +5,22 @@ const express = require('express');
 const cookieParser = require('cookie-parser');
 const session = require('express-session');
 
+function validateEnv() {
+  const missing = [];
+  if (!process.env.SITE_PASSWORD_HASH) missing.push('SITE_PASSWORD_HASH');
+  if (!process.env.VAPI_API_KEY) missing.push('VAPI_API_KEY');
+  if (missing.length) {
+    console.error('Missing required environment variables:', missing.join(', '));
+    process.exit(1);
+  }
+  const isProduction = process.env.NODE_ENV === 'production';
+  if (isProduction && (!process.env.SESSION_SECRET || process.env.SESSION_SECRET === 'change-me')) {
+    console.error('In production, set SESSION_SECRET to a long random string (e.g. run: openssl rand -hex 32)');
+    process.exit(1);
+  }
+}
+validateEnv();
+
 const UPLOAD_DIR = path.join(__dirname, 'uploads');
 const DATA_DIR = path.join(__dirname, 'data');
 if (!fs.existsSync(UPLOAD_DIR)) fs.mkdirSync(UPLOAD_DIR, { recursive: true });
@@ -56,7 +72,7 @@ app.get('/api/health', (req, res) => res.json({ ok: true }));
 const { getState } = require('./lib/store');
 const scheduler = require('./lib/scheduler');
 
-app.listen(PORT, () => {
+const server = app.listen(PORT, () => {
   console.log(`Prosbookings Dialer at http://localhost:${PORT} (VAPI_API_KEY set: ${!!process.env.VAPI_API_KEY})`);
   const state = getState();
   for (const id of ['dialer1', 'dialer2', 'dialer3']) {
@@ -66,3 +82,17 @@ app.listen(PORT, () => {
     }
   }
 });
+
+function shutdown(signal) {
+  console.log(`[${signal}] Shutting down gracefully...`);
+  server.close(() => {
+    console.log('Server closed');
+    process.exit(0);
+  });
+  setTimeout(() => {
+    console.error('Forced exit after 30s');
+    process.exit(1);
+  }, 30000);
+}
+process.on('SIGTERM', () => shutdown('SIGTERM'));
+process.on('SIGINT', () => shutdown('SIGINT'));

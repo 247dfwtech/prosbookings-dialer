@@ -104,6 +104,11 @@
       const data = await api(`/api/upload/${uploadId}/data`);
       const section = document.getElementById('spreadsheet-view-section');
       document.getElementById('sheet-view-title').textContent = data.originalName || uploadId;
+      const downloadLink = document.getElementById('btn-download-current-sheet');
+      if (downloadLink) {
+        downloadLink.href = `/api/upload/${encodeURIComponent(uploadId)}/download`;
+        downloadLink.setAttribute('download', '');
+      }
       section.style.display = 'block';
       window.__currentSheetUploadId = uploadId;
       renderSheetTable(data.headers, data.rows);
@@ -144,12 +149,16 @@
       notAnswered: s.callsNotAnsweredToday ?? 0,
       booked: state.appointmentsBookedToday ?? 0,
     };
+    const running = !!s.running;
+    const paused = !!s.paused;
+    const statusText = !running ? 'Stopped' : paused ? 'Paused' : 'Running';
 
     return `
       <div class="dialer-box" data-dialer="${dialerId}">
         <h2>${label}</h2>
         <button type="button" class="btn-secondary btn-vapi-info" data-dialer="${dialerId}">Get latest VAPI info</button>
-        <div class="status ${s.running ? 'running' : ''}" id="status-${dialerId}">${s.running ? 'Running' : 'Stopped'}</div>
+        <div class="status ${running && !paused ? 'running' : ''} ${paused ? 'paused' : ''}" id="status-${dialerId}">${statusText}</div>
+        <p class="next-up" id="next-up-${dialerId}"></p>
 
         <label>Call list (spreadsheet)</label>
         <select class="dialer-spreadsheet" data-dialer="${dialerId}">
@@ -202,8 +211,10 @@
         <button type="button" class="btn-secondary btn-save-voicemail" data-dialer="${dialerId}">Save voicemail message</button>
 
         <div>
-          <button type="button" class="btn-primary btn-start" data-dialer="${dialerId}" ${s.running ? 'disabled' : ''}>Start</button>
-          <button type="button" class="btn-danger btn-stop" data-dialer="${dialerId}" ${!s.running ? 'disabled' : ''}>Stop</button>
+          <button type="button" class="btn-primary btn-start" data-dialer="${dialerId}" ${running ? 'disabled' : ''}>Start</button>
+          <button type="button" class="btn-secondary btn-pause" data-dialer="${dialerId}" ${!running || paused ? 'disabled' : ''}>Pause</button>
+          <button type="button" class="btn-secondary btn-resume" data-dialer="${dialerId}" ${!running || !paused ? 'disabled' : ''}>Resume</button>
+          <button type="button" class="btn-danger btn-stop" data-dialer="${dialerId}" ${!running ? 'disabled' : ''}>Stop</button>
         </div>
 
         <div class="stats-box" data-dialer="${dialerId}">
@@ -239,13 +250,35 @@
   }
 
   function updateStatsOnly() {
-    loadState().then(() => {
+    Promise.all([loadState(), api('/api/dialer/next-up').catch(() => ({}))]).then(([, nextUp]) => {
+      nextUp = nextUp || {};
       DIALER_IDS.forEach((dialerId) => {
         const s = state.dialers[dialerId] || {};
+        const running = !!s.running;
+        const paused = !!s.paused;
         const statusEl = document.getElementById('status-' + dialerId);
         if (statusEl) {
-          statusEl.textContent = s.running ? 'Running' : 'Stopped';
-          statusEl.classList.toggle('running', !!s.running);
+          statusEl.textContent = !running ? 'Stopped' : paused ? 'Paused' : 'Running';
+          statusEl.classList.toggle('running', running && !paused);
+          statusEl.classList.toggle('paused', paused);
+        }
+        const nextUpEl = document.getElementById('next-up-' + dialerId);
+        if (nextUpEl) {
+          const n = nextUp[dialerId];
+          if (n?.done) nextUpEl.textContent = 'Next: All done for this list.';
+          else if (n?.firstName != null || n?.phone) nextUpEl.textContent = `Next: ${[n.firstName, n.lastName].filter(Boolean).join(' ')} (row ${n.rowIndex})`;
+          else nextUpEl.textContent = '';
+        }
+        const root = getDialerEl(dialerId);
+        if (root) {
+          const btnStart = root.querySelector('.btn-start');
+          const btnPause = root.querySelector('.btn-pause');
+          const btnResume = root.querySelector('.btn-resume');
+          const btnStop = root.querySelector('.btn-stop');
+          if (btnStart) btnStart.disabled = running;
+          if (btnPause) btnPause.disabled = !running || paused;
+          if (btnResume) btnResume.disabled = !running || !paused;
+          if (btnStop) btnStop.disabled = !running;
         }
         const placed = document.getElementById('stats-placed-' + dialerId);
         const answered = document.getElementById('stats-answered-' + dialerId);
@@ -369,6 +402,22 @@
       btn.addEventListener('click', async () => {
         const id = btn.dataset.dialer;
         await api(`/api/dialer/start/${id}`, { method: 'POST' });
+        await loadState();
+        refreshDialers();
+      });
+    });
+    document.querySelectorAll('.btn-pause').forEach((btn) => {
+      btn.addEventListener('click', async () => {
+        const id = btn.dataset.dialer;
+        await api(`/api/dialer/pause/${id}`, { method: 'POST' });
+        await loadState();
+        refreshDialers();
+      });
+    });
+    document.querySelectorAll('.btn-resume').forEach((btn) => {
+      btn.addEventListener('click', async () => {
+        const id = btn.dataset.dialer;
+        await api(`/api/dialer/resume/${id}`, { method: 'POST' });
         await loadState();
         refreshDialers();
       });
