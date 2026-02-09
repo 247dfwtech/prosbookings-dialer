@@ -15,6 +15,16 @@
     <button type="button" class="btn-logout" id="btn-logout">Log out</button>
   </div>
 
+  <section class="phone-lookup-section">
+    <h2>Phone number lookup</h2>
+    <p class="phone-lookup-desc">Search all uploaded spreadsheets for a phone number.</p>
+    <div class="phone-lookup-row">
+      <input type="tel" id="phone-lookup-input" placeholder="e.g. 555-123-4567 or 5551234567" maxlength="20">
+      <button type="button" class="btn-primary" id="btn-phone-lookup">Search</button>
+    </div>
+    <div id="phone-lookup-result" class="phone-lookup-result"></div>
+  </section>
+
   <section class="upload-section">
     <h2>Upload spreadsheet</h2>
     <input type="file" id="file-input" accept=".xlsx,.xls">

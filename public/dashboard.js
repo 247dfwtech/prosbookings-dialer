@@ -472,6 +472,47 @@
     if (window.__currentSheetUploadId) viewSpreadsheet(window.__currentSheetUploadId);
   });
 
+  const phoneLookupInput = document.getElementById('phone-lookup-input');
+  const phoneLookupResult = document.getElementById('phone-lookup-result');
+  document.getElementById('btn-phone-lookup').addEventListener('click', runPhoneLookup);
+  if (phoneLookupInput) {
+    phoneLookupInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); runPhoneLookup(); } });
+  }
+  async function runPhoneLookup() {
+    const phone = (phoneLookupInput?.value || '').trim();
+    if (!phone) {
+      phoneLookupResult.innerHTML = '<p class="phone-lookup-msg">Enter a phone number.</p>';
+      return;
+    }
+    if (phone.replace(/\D/g, '').length < 10) {
+      phoneLookupResult.innerHTML = '<p class="phone-lookup-msg error">Enter at least 10 digits.</p>';
+      return;
+    }
+    phoneLookupResult.innerHTML = '<p class="phone-lookup-msg">Searching…</p>';
+    try {
+      const data = await api(`/api/upload/phone-lookup?phone=${encodeURIComponent(phone)}`);
+      const matches = data.matches || [];
+      if (matches.length === 0) {
+        phoneLookupResult.innerHTML = '<p class="phone-lookup-msg">No matches in any spreadsheet.</p>';
+        return;
+      }
+      phoneLookupResult.innerHTML = matches.map((m) => {
+        const name = [m.firstName, m.lastName].filter(Boolean).join(' ') || '—';
+        const address = [m.address, m.city, m.zip].filter(Boolean).join(', ') || '—';
+        return `<div class="phone-lookup-card">
+          <div class="phone-lookup-name">${escapeHtml(name)}</div>
+          <div class="phone-lookup-address">${escapeHtml(address)}</div>
+          <div class="phone-lookup-spreadsheet">Found in: ${escapeHtml(m.spreadsheetName)} <a href="#" class="link-view-sheet" data-upload-id="${escapeHtml(m.uploadId)}">View</a></div>
+        </div>`;
+      }).join('');
+      phoneLookupResult.querySelectorAll('.link-view-sheet').forEach((a) => {
+        a.addEventListener('click', (e) => { e.preventDefault(); viewSpreadsheet(a.dataset.uploadId); });
+      });
+    } catch (e) {
+      phoneLookupResult.innerHTML = `<p class="phone-lookup-msg error">${escapeHtml(e.message || 'Search failed')}</p>`;
+    }
+  }
+
   document.getElementById('btn-upload').addEventListener('click', async () => {
     const input = document.getElementById('file-input');
     if (!input.files?.length) {

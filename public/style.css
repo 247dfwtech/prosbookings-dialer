@@ -181,6 +181,103 @@ body {
   border-color: var(--text-dim);
 }
 
+/* Phone lookup */
+.phone-lookup-section {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 1.5rem;
+  margin-bottom: 1.5rem;
+  box-shadow: var(--shadow);
+}
+
+.phone-lookup-section h2 {
+  margin: 0 0 0.35rem;
+  font-size: 1.15rem;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.phone-lookup-desc {
+  color: var(--text-muted);
+  font-size: 0.9rem;
+  margin: 0 0 1rem;
+}
+
+.phone-lookup-row {
+  display: flex;
+  gap: 0.75rem;
+  align-items: center;
+  flex-wrap: wrap;
+  margin-bottom: 1rem;
+}
+
+.phone-lookup-row input {
+  flex: 1;
+  min-width: 200px;
+  padding: 0.6rem 0.75rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--bg-elevated);
+  color: var(--text);
+  font-size: 1rem;
+  font-family: inherit;
+}
+
+.phone-lookup-row input:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+
+.phone-lookup-result {
+  margin-top: 0.5rem;
+}
+
+.phone-lookup-msg {
+  color: var(--text-muted);
+  font-size: 0.95rem;
+  margin: 0;
+}
+
+.phone-lookup-card {
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 1rem 1.25rem;
+  margin-bottom: 0.75rem;
+}
+
+.phone-lookup-card:last-child {
+  margin-bottom: 0;
+}
+
+.phone-lookup-name {
+  font-weight: 600;
+  font-size: 1rem;
+  color: var(--text);
+  margin-bottom: 0.25rem;
+}
+
+.phone-lookup-address {
+  font-size: 0.9rem;
+  color: var(--text-muted);
+  margin-bottom: 0.35rem;
+}
+
+.phone-lookup-spreadsheet {
+  font-size: 0.85rem;
+  color: var(--text-dim);
+}
+
+.phone-lookup-spreadsheet a {
+  color: var(--link);
+  margin-left: 0.35rem;
+}
+
+.phone-lookup-spreadsheet a:hover {
+  text-decoration: underline;
+}
+
 /* Sections */
 .upload-section,
 .spreadsheet-view-section {

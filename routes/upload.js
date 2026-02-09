@@ -6,7 +6,7 @@ const { v4: uuidv4 } = require('uuid');
 const router = express.Router();
 const { listUploads, saveUploadMeta, getUploadMeta, removeUpload } = require('../lib/upload-store');
 const { getConfig, updateConfig } = require('../lib/store');
-const { readSheet, findHeaders, normalizeRow } = require('../lib/spreadsheet');
+const { readSheet, findHeaders, normalizeRow, findRowByPhone } = require('../lib/spreadsheet');
 
 const UPLOAD_DIR = path.join(__dirname, '..', 'uploads');
 const MAX_SIZE = 10 * 1024 * 1024;
@@ -42,6 +42,37 @@ router.post('/', (req, res, next) => {
 });
 
 router.get('/list', (req, res) => res.json(listUploads()));
+
+router.get('/phone-lookup', (req, res) => {
+  const phone = req.query.phone;
+  if (!phone || String(phone).replace(/\D/g, '').length < 10) {
+    return res.status(400).json({ error: 'Enter at least 10 digits' });
+  }
+  const uploads = listUploads();
+  const matches = [];
+  for (const { uploadId, originalName } of uploads) {
+    const meta = getUploadMeta(uploadId);
+    if (!meta?.path || !fs.existsSync(meta.path)) continue;
+    try {
+      const found = findRowByPhone(meta.path, phone);
+      if (found) {
+        matches.push({
+          firstName: found.row.firstName,
+          lastName: found.row.lastName,
+          address: found.row.address,
+          city: found.row.city,
+          zip: found.row.zip,
+          spreadsheetName: meta.originalName || originalName || uploadId,
+          uploadId,
+        });
+      }
+    } catch (e) {
+      console.error('phone-lookup', uploadId, e.message);
+    }
+  }
+  res.json({ matches });
+});
+
 router.get('/:uploadId/meta', (req, res) => {
   const meta = getUploadMeta(req.params.uploadId);
   if (!meta) return res.status(404).json({ error: 'Not found' });
