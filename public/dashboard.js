@@ -515,27 +515,42 @@
 
   document.getElementById('btn-upload').addEventListener('click', async () => {
     const input = document.getElementById('file-input');
+    const btn = document.getElementById('btn-upload');
     if (!input.files?.length) {
       alert('Select a file first');
       return;
     }
     const form = new FormData();
     form.append('file', input.files[0]);
-    const res = await fetch('/api/upload', {
-      method: 'POST',
-      body: form,
-      credentials: 'same-origin',
-    });
-    const data = await res.json().catch(() => ({}));
-    if (!res.ok) {
-      alert(data.error || 'Upload failed');
-      return;
+    const prevText = btn.textContent;
+    btn.disabled = true;
+    btn.textContent = 'Uploading…';
+    try {
+      const res = await fetch('/api/upload', {
+        method: 'POST',
+        body: form,
+        credentials: 'same-origin',
+      });
+      const data = await res.json().catch(() => ({}));
+      if (res.status === 401) {
+        window.location.href = '/';
+        return;
+      }
+      if (!res.ok) {
+        alert(data.error || 'Upload failed');
+        return;
+      }
+      input.value = '';
+      const list = await loadUploads();
+      window.__uploadList = list;
+      renderFileList(list);
+      refreshDialers();
+    } catch (e) {
+      alert(e.message || 'Upload failed (network error)');
+    } finally {
+      btn.disabled = false;
+      btn.textContent = prevText;
     }
-    input.value = '';
-    const list = await loadUploads();
-    window.__uploadList = list;
-    renderFileList(list);
-    refreshDialers();
   });
 
   async function init() {

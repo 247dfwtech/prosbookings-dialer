@@ -18,7 +18,10 @@ const upload = multer({
   }),
   limits: { fileSize: MAX_SIZE },
   fileFilter: (req, file, cb) => {
-    cb(null, /\.(xlsx|xls)$/i.test(file.originalname));
+    const name = (file.originalname || '').trim();
+    const ok = /\.(xlsx|xls)$/i.test(name);
+    if (!ok) return cb(new Error('Use .xls or .xlsx only'), false);
+    cb(null, true);
   },
 });
 
