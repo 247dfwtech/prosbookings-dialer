@@ -39,7 +39,9 @@ function applyCallEnded(message) {
   const analysis = message.analysis || {};
   const successEvaluation = analysis.successEvaluation ?? (message.successEvaluation ?? '');
   const artifact = message.artifact || {};
-  const transcript = artifact.transcript ?? (message.transcript ?? '');
+  let transcript = artifact.transcript ?? (message.transcript ?? '');
+  // Put each speaker turn on its own line in the spreadsheet
+  transcript = transcript.replace(/\s+AI:\s+/g, '\nAI: ').replace(/\s+User:\s+/g, '\nUser: ').trim();
 
   if (!externalId) return;
   const parsed = parseExternalId(externalId);
