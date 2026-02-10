@@ -18,8 +18,12 @@ validateEnv();
 
 const UPLOAD_DIR = path.join(__dirname, 'uploads');
 const DATA_DIR = path.join(__dirname, 'data');
-if (!fs.existsSync(UPLOAD_DIR)) fs.mkdirSync(UPLOAD_DIR, { recursive: true });
-if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR, { recursive: true });
+try {
+  if (!fs.existsSync(UPLOAD_DIR)) fs.mkdirSync(UPLOAD_DIR, { recursive: true });
+  if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR, { recursive: true });
+} catch (e) {
+  console.warn('Could not create upload/data dirs:', e.message);
+}
 
 const authRouter = require('./routes/auth');
 const dialerRouter = require('./routes/dialer');
@@ -31,6 +35,11 @@ const app = express();
 const PORT = process.env.PORT || 3000;
 
 function getSessionStore() {
+  // Railway has no persistent writable /app/data; use memory to avoid session-file-store ENOENT spam
+  if (process.env.RAILWAY_ENVIRONMENT != null) {
+    console.warn('Session file store skipped (Railway), using memory');
+    return undefined;
+  }
   const sessionDir = path.join(DATA_DIR, 'sessions');
   try {
     if (!fs.existsSync(sessionDir)) fs.mkdirSync(sessionDir, { recursive: true });
