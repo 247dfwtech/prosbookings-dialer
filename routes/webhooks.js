@@ -13,6 +13,73 @@ const { sendBookingConfirmation } = require('../lib/email');
 const { createEvent } = require('../lib/calendar');
 const { updateState } = require('../lib/store');
 const { recordCallEnded, recordBooking } = require('../lib/stats');
+const { addToBlacklist } = require('../lib/blacklist');
+
+const TEST_PHONE_LAST10 = new Set(['2146002023', '8178086172', '9156379939']);
+
+const BAD_NUMBER_ENDED_REASONS = new Set([
+  'call.start.error-get-transport',
+  'call.start.error-get-customer',
+  'twilio-failed-to-connect-call',
+  'twilio-reported-customer-misdialed',
+  'vonage-failed-to-connect-call',
+  'vonage-rejected',
+  'call.in-progress.error-sip-telephony-provider-failed-to-connect-call',
+  'call-failed-timeout',
+]);
+
+function normalizePhoneForCompare(phone) {
+  return String(phone || '').replace(/\D/g, '').slice(-10);
+}
+
+function applyCallEnded(message) {
+  const customer = message.customer || message.call?.customer || {};
+  const externalId = customer.externalId || message.externalId || '';
+  const endedReason = message.endedReason || message.call?.endedReason || '';
+  const analysis = message.analysis || {};
+  const successEvaluation = analysis.successEvaluation ?? (message.successEvaluation ?? '');
+  const artifact = message.artifact || {};
+  const transcript = artifact.transcript ?? (message.transcript ?? '');
+
+  if (!externalId) return;
+  const parsed = parseExternalId(externalId);
+  if (!parsed) return;
+
+  const { dialerId, uploadId, rowIndex } = parsed;
+  const customerNumber = normalizePhoneForCompare(customer.number || message.customer?.number);
+  const isTestNumber = customerNumber && TEST_PHONE_LAST10.has(customerNumber);
+  if (dialerId !== 'test' && !isTestNumber) {
+    recordCallEnded(dialerId, endedReason);
+  }
+  if (!isNaN(rowIndex)) {
+    const meta = getUploadMeta(uploadId);
+    if (meta?.path) {
+      try {
+        updateRow(meta.path, rowIndex, {
+          status: 'called',
+          endedReason,
+          successEvaluation,
+          transcript,
+        });
+      } catch (e) {
+        console.error('Webhook vapi updateRow:', e);
+      }
+    }
+    if (customerNumber && BAD_NUMBER_ENDED_REASONS.has(endedReason)) {
+      if (addToBlacklist(customerNumber)) {
+        console.log('[webhook] Added to blacklist (bad number):', customerNumber, endedReason);
+      }
+    }
+    if (endedReason === 'customer-did-not-answer') {
+      scheduler.scheduleDoubleTapRetry(externalId);
+    }
+  }
+  updateState((s) => {
+    if (s.pendingCallPhoneNumber) delete s.pendingCallPhoneNumber[externalId];
+    if (s.pendingCallStartedAt) delete s.pendingCallStartedAt[externalId];
+    return s;
+  });
+}
 
 router.post('/vapi', (req, res) => {
   const { message } = req.body || {};
@@ -21,46 +88,9 @@ router.post('/vapi', (req, res) => {
   }
 
   if (message.type === 'end-of-call-report') {
-    const endedReason = message.endedReason || '';
-    const analysis = message.analysis || {};
-    const successEvaluation = analysis.successEvaluation ?? '';
-    const artifact = message.artifact || {};
-    const transcript = artifact.transcript ?? '';
-    const customer = message.customer || message.call?.customer || {};
-    const externalId = customer.externalId || '';
-
-    if (externalId) {
-      const parsed = parseExternalId(externalId);
-      if (parsed) {
-        const { dialerId, uploadId, rowIndex } = parsed;
-        if (dialerId !== 'test') {
-          recordCallEnded(dialerId, endedReason);
-        }
-        if (!isNaN(rowIndex)) {
-          const meta = getUploadMeta(uploadId);
-          if (meta?.path) {
-            try {
-              updateRow(meta.path, rowIndex, {
-                status: 'called',
-                endedReason,
-                successEvaluation,
-                transcript,
-              });
-            } catch (e) {
-              console.error('Webhook vapi updateRow:', e);
-            }
-          }
-
-          if (endedReason === 'customer-did-not-answer') {
-            scheduler.scheduleDoubleTapRetry(externalId);
-          }
-        }
-        updateState((s) => {
-          if (s.pendingCallPhoneNumber) delete s.pendingCallPhoneNumber[externalId];
-          return s;
-        });
-      }
-    }
+    applyCallEnded(message);
+  } else if (message.endedReason || message.call?.endedReason) {
+    applyCallEnded(message);
   }
 
   res.status(200).json({ received: true });
