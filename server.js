@@ -30,9 +30,22 @@ const { requireAuth } = require('./routes/auth');
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-const FileStore = require('session-file-store')(session);
-const sessionDir = path.join(DATA_DIR, 'sessions');
-if (!fs.existsSync(sessionDir)) fs.mkdirSync(sessionDir, { recursive: true });
+function getSessionStore() {
+  const sessionDir = path.join(DATA_DIR, 'sessions');
+  try {
+    if (!fs.existsSync(sessionDir)) fs.mkdirSync(sessionDir, { recursive: true });
+    const testFile = path.join(sessionDir, '.write-test');
+    fs.writeFileSync(testFile, '');
+    fs.unlinkSync(testFile);
+    const FileStore = require('session-file-store')(session);
+    return new FileStore({ path: sessionDir });
+  } catch (e) {
+    console.warn('Session file store unavailable, using memory:', e.message);
+    return undefined;
+  }
+}
+
+const sessionStore = getSessionStore();
 
 app.use(cookieParser());
 app.use(express.json());
@@ -43,7 +56,7 @@ app.use(
     resave: false,
     saveUninitialized: false,
     cookie: { httpOnly: true, maxAge: 7 * 24 * 60 * 60 * 1000 },
-    store: new FileStore({ path: sessionDir }),
+    store: sessionStore,
   })
 );
 
