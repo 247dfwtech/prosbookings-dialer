@@ -26,14 +26,15 @@
   </section>
 
   <section class="upload-section">
-    <h2>Upload spreadsheet</h2>
+    <h2>Upload spreadsheet <button type="button" class="btn-secondary" id="btn-update-blacklists">Update Blacklists</button></h2>
     <input type="file" id="file-input" accept=".xlsx,.xls">
     <button type="button" class="btn-secondary" id="btn-upload">Upload</button>
+    <button type="button" class="btn-secondary" id="btn-download-all">Download all</button>
     <div class="file-list" id="file-list">No files uploaded.</div>
   </section>
 
   <section class="spreadsheet-view-section" id="spreadsheet-view-section" style="display: none;">
-    <h2>Spreadsheet: <span id="sheet-view-title"></span> <button type="button" class="btn-secondary" id="btn-refresh-sheet">Refresh</button></h2>
+    <h2>Spreadsheet: <span id="sheet-view-title"></span> <button type="button" class="btn-secondary" id="btn-refresh-sheet">Refresh</button> <button type="button" class="btn-secondary" id="btn-filter-success">Success evaluation True</button></h2>
     <p class="download-promo"><a href="#" id="btn-download-current-sheet" class="btn-primary" download>Download this spreadsheet</a> — Save a copy with updated Status, ended reason, and transcript.</p>
     <div class="sheet-table-wrap">
       <table class="sheet-table" id="sheet-table"></table>

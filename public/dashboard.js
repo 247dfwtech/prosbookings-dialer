@@ -17,6 +17,7 @@
   let config = { dialers: {} };
   let state = { dialers: {} };
   let vapiInfo = { assistants: [], phoneNumbers: [] };
+  let filterSuccessOnly = false;
 
   async function loadConfig() {
     config = await api('/api/dialer/config');
@@ -111,6 +112,7 @@
       }
       section.style.display = 'block';
       window.__currentSheetUploadId = uploadId;
+      window.__currentSheetData = data;
       renderSheetTable(data.headers, data.rows);
     } catch (e) {
       alert(e.message || 'Failed to load spreadsheet');
@@ -121,8 +123,15 @@
     const displayHeaders = ['firstName', 'lastName', 'address', 'city', 'zip', 'phone', 'status', 'endedReason', 'successEvaluation', 'transcript'];
     const labels = { firstName: 'First name', lastName: 'Last name', address: 'Address', city: 'City', zip: 'Zip', status: 'Status', endedReason: 'Ended reason', successEvaluation: 'Success evaluation', transcript: 'Transcript' };
     const table = document.getElementById('sheet-table');
+    let filteredRows = rows;
+    if (filterSuccessOnly) {
+      filteredRows = rows.filter((row) => {
+        const val = String(row.successEvaluation ?? '').trim().toLowerCase();
+        return val === 'true';
+      });
+    }
     let html = '<thead><tr>' + displayHeaders.map((h) => `<th>${escapeHtml(labels[h] || h)}</th>`).join('') + '</tr></thead><tbody>';
-    rows.forEach((row) => {
+    filteredRows.forEach((row) => {
       html += '<tr>' + displayHeaders.map((h) => `<td>${escapeHtml(String(row[h] ?? ''))}</td>`).join('') + '</tr>';
     });
     html += '</tbody>';
@@ -165,6 +174,9 @@
           <option value="">-- Select --</option>
           ${(vapiInfo.uploadList || []).map((f) => `<option value="${f.uploadId}" ${d.spreadsheetId === f.uploadId ? 'selected' : ''}>${escapeHtml(f.originalName)}</option>`).join('')}
         </select>
+
+        <label>Target Zip</label>
+        <input type="text" class="dialer-target-zip" data-dialer="${dialerId}" value="${d.targetZip || ''}" placeholder="e.g. 75001 (leave empty for all zip codes)">
 
         <label>Assistant</label>
         <select class="dialer-assistant" data-dialer="${dialerId}">
@@ -308,6 +320,7 @@
     const vmMsg = root.querySelector('.dialer-voicemail-msg');
     const startTime = root.querySelector('.dialer-start-time');
     const endTime = root.querySelector('.dialer-end-time');
+    const targetZip = root.querySelector('.dialer-target-zip');
     const phoneChecks = root.querySelectorAll('.dialer-phone:checked');
     return {
       dialerId,
@@ -321,6 +334,7 @@
       phoneNumberIds: Array.from(phoneChecks).map((c) => c.dataset.id),
       startTime: startTime?.value || '',
       endTime: endTime?.value || '',
+      targetZip: targetZip?.value?.trim() || '',
     };
   }
 
@@ -384,8 +398,11 @@
         }
       });
     });
-    document.querySelectorAll('.dialer-start-time, .dialer-end-time').forEach((el) => {
+    document.querySelectorAll('.dialer-start-time, .dialer-end-time, .dialer-target-zip').forEach((el) => {
       el.addEventListener('change', () => saveDialerConfig(el.dataset.dialer));
+    });
+    document.querySelectorAll('.dialer-target-zip').forEach((inp) => {
+      inp.addEventListener('blur', () => saveDialerConfig(inp.dataset.dialer));
     });
     document.querySelectorAll('.dialer-phone').forEach((cb) => {
       cb.addEventListener('change', () => {
@@ -472,6 +489,17 @@
     if (window.__currentSheetUploadId) viewSpreadsheet(window.__currentSheetUploadId);
   });
 
+  document.getElementById('btn-filter-success').addEventListener('click', () => {
+    filterSuccessOnly = !filterSuccessOnly;
+    const btn = document.getElementById('btn-filter-success');
+    btn.textContent = filterSuccessOnly ? 'Show all' : 'Success evaluation True';
+    btn.classList.toggle('btn-primary', filterSuccessOnly);
+    btn.classList.toggle('btn-secondary', !filterSuccessOnly);
+    if (window.__currentSheetData) {
+      renderSheetTable(window.__currentSheetData.headers, window.__currentSheetData.rows);
+    }
+  });
+
   const phoneLookupInput = document.getElementById('phone-lookup-input');
   const phoneLookupResult = document.getElementById('phone-lookup-result');
   document.getElementById('btn-phone-lookup').addEventListener('click', runPhoneLookup);
@@ -551,6 +579,30 @@
       btn.disabled = false;
       btn.textContent = prevText;
     }
+  });
+
+  document.getElementById('btn-update-blacklists').addEventListener('click', async () => {
+    const btn = document.getElementById('btn-update-blacklists');
+    const prevText = btn.textContent;
+    btn.disabled = true;
+    btn.textContent = 'Updating…';
+    try {
+      const data = await api('/api/upload/update-blacklists', { method: 'POST' });
+      if (data.ok) {
+        alert(data.message || `Processed ${data.processed} spreadsheet(s). Added ${data.blacklisted} phone(s) to blacklist, ${data.booked} booking(s) to booked.xlsx.`);
+      } else {
+        alert(data.error || 'Update failed');
+      }
+    } catch (e) {
+      alert(e.message || 'Update failed (network error)');
+    } finally {
+      btn.disabled = false;
+      btn.textContent = prevText;
+    }
+  });
+
+  document.getElementById('btn-download-all').addEventListener('click', () => {
+    window.location.href = '/api/upload/download-all';
   });
 
   async function init() {
