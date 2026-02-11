@@ -247,22 +247,11 @@ router.post('/update-blacklists', (req, res) => {
 router.get('/download-all', (req, res) => {
   try {
     const uploads = listUploads();
-    if (uploads.length === 0) {
-      return res.status(404).json({ error: 'No spreadsheets to download' });
-    }
+    const DATA_DIR = process.env.APP_DATA_DIR || path.join(__dirname, '..', 'data');
+    const BLACKLIST_PATH = path.join(DATA_DIR, 'blacklist.txt');
+    const BOOKED_PATH = path.join(DATA_DIR, 'booked.xlsx');
 
-    // If only one file, download it directly
-    if (uploads.length === 1) {
-      const { uploadId } = uploads[0];
-      const meta = getUploadMeta(uploadId);
-      if (!meta?.path || !fs.existsSync(meta.path)) {
-        return res.status(404).json({ error: 'File not found' });
-      }
-      const filename = meta.originalName || `${uploadId}.xlsx`;
-      return res.download(meta.path, filename);
-    }
-
-    // Multiple files: create zip
+    // Always create zip (even if only one spreadsheet) to include blacklist/booked
     const now = new Date();
     const dateStr = now.toISOString().replace(/[:.]/g, '-').slice(0, -5); // Format: 2026-02-08T14-30-22
     const filename = `all-spreadsheets-${dateStr}.zip`;
@@ -271,14 +260,28 @@ router.get('/download-all', (req, res) => {
     archive.pipe(res);
 
     let addedCount = 0;
+    
+    // Add all uploaded spreadsheets
     for (const { uploadId } of uploads) {
       const meta = getUploadMeta(uploadId);
       if (!meta?.path || !fs.existsSync(meta.path)) {
         console.log(`[download-all] Skipping ${uploadId}: file not found`);
         continue;
       }
-      const filename = meta.originalName || `${uploadId}.xlsx`;
-      archive.file(meta.path, { name: filename });
+      const fileFilename = meta.originalName || `${uploadId}.xlsx`;
+      archive.file(meta.path, { name: fileFilename });
+      addedCount++;
+    }
+
+    // Add blacklist.txt if it exists
+    if (fs.existsSync(BLACKLIST_PATH)) {
+      archive.file(BLACKLIST_PATH, { name: 'blacklist.txt' });
+      addedCount++;
+    }
+
+    // Add booked.xlsx if it exists
+    if (fs.existsSync(BOOKED_PATH)) {
+      archive.file(BOOKED_PATH, { name: 'booked.xlsx' });
       addedCount++;
     }
 
@@ -291,6 +294,124 @@ router.get('/download-all', (req, res) => {
   } catch (e) {
     console.error('[download-all] Error:', e);
     res.status(500).json({ error: e.message || 'Failed to create download' });
+  }
+});
+
+router.get('/blacklist/status', (req, res) => {
+  const DATA_DIR = process.env.APP_DATA_DIR || path.join(__dirname, '..', 'data');
+  const BLACKLIST_PATH = path.join(DATA_DIR, 'blacklist.txt');
+  if (!fs.existsSync(BLACKLIST_PATH)) {
+    return res.json({ exists: false, count: 0 });
+  }
+  try {
+    const content = fs.readFileSync(BLACKLIST_PATH, 'utf8');
+    const lines = content.split(/\r?\n/).filter((line) => line.trim().length >= 10);
+    res.json({ exists: true, count: lines.length });
+  } catch (e) {
+    res.json({ exists: true, count: 0, error: e.message });
+  }
+});
+
+router.get('/booked/status', (req, res) => {
+  const DATA_DIR = process.env.APP_DATA_DIR || path.join(__dirname, '..', 'data');
+  const BOOKED_PATH = path.join(DATA_DIR, 'booked.xlsx');
+  if (!fs.existsSync(BOOKED_PATH)) {
+    return res.json({ exists: false, count: 0 });
+  }
+  try {
+    const XLSX = require('xlsx');
+    const wb = XLSX.readFile(BOOKED_PATH);
+    const firstSheet = wb.SheetNames[0];
+    const ws = wb.Sheets[firstSheet];
+    const data = XLSX.utils.sheet_to_json(ws, { header: 1, defval: '' });
+    const rowCount = Math.max(0, data.length - 1); // Subtract header row
+    res.json({ exists: true, count: rowCount });
+  } catch (e) {
+    res.json({ exists: true, count: 0, error: e.message });
+  }
+});
+
+router.get('/blacklist/download', (req, res) => {
+  const DATA_DIR = process.env.APP_DATA_DIR || path.join(__dirname, '..', 'data');
+  const BLACKLIST_PATH = path.join(DATA_DIR, 'blacklist.txt');
+  if (!fs.existsSync(BLACKLIST_PATH)) {
+    return res.status(404).json({ error: 'Blacklist file not found' });
+  }
+  res.download(BLACKLIST_PATH, 'blacklist.txt');
+});
+
+router.get('/booked/download', (req, res) => {
+  const DATA_DIR = process.env.APP_DATA_DIR || path.join(__dirname, '..', 'data');
+  const BOOKED_PATH = path.join(DATA_DIR, 'booked.xlsx');
+  if (!fs.existsSync(BOOKED_PATH)) {
+    return res.status(404).json({ error: 'Booked appointments file not found' });
+  }
+  res.download(BOOKED_PATH, 'booked.xlsx');
+});
+
+const uploadBlacklistBooked = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 10 * 1024 * 1024 },
+  fileFilter: (req, file, cb) => {
+    const name = (file.originalname || '').trim().toLowerCase();
+    const isBlacklist = name === 'blacklist.txt';
+    const isBooked = name === 'booked.xlsx' || name === 'booked.xls';
+    if (isBlacklist || isBooked) {
+      cb(null, true);
+    } else {
+      cb(new Error('File must be blacklist.txt or booked.xlsx'), false);
+    }
+  },
+});
+
+router.post('/blacklist/upload', uploadBlacklistBooked.single('file'), (req, res) => {
+  if (!req.file) {
+    return res.status(400).json({ error: 'No file uploaded or invalid file name (must be blacklist.txt)' });
+  }
+  if (req.file.originalname.toLowerCase() !== 'blacklist.txt') {
+    return res.status(400).json({ error: 'File must be named blacklist.txt' });
+  }
+  try {
+    const DATA_DIR = process.env.APP_DATA_DIR || path.join(__dirname, '..', 'data');
+    const BLACKLIST_PATH = path.join(DATA_DIR, 'blacklist.txt');
+    if (!fs.existsSync(DATA_DIR)) {
+      fs.mkdirSync(DATA_DIR, { recursive: true });
+    }
+    fs.writeFileSync(BLACKLIST_PATH, req.file.buffer, 'utf8');
+    const lines = req.file.buffer.toString('utf8').split(/\r?\n/).filter((line) => line.trim().length >= 10);
+    res.json({ ok: true, message: `Uploaded blacklist.txt with ${lines.length} phone number(s)` });
+  } catch (e) {
+    console.error('[blacklist/upload] Error:', e);
+    res.status(500).json({ error: e.message || 'Failed to upload blacklist' });
+  }
+});
+
+router.post('/booked/upload', uploadBlacklistBooked.single('file'), (req, res) => {
+  if (!req.file) {
+    return res.status(400).json({ error: 'No file uploaded or invalid file name (must be booked.xlsx)' });
+  }
+  const name = (req.file.originalname || '').trim().toLowerCase();
+  if (name !== 'booked.xlsx' && name !== 'booked.xls') {
+    return res.status(400).json({ error: 'File must be named booked.xlsx or booked.xls' });
+  }
+  try {
+    const DATA_DIR = process.env.APP_DATA_DIR || path.join(__dirname, '..', 'data');
+    const BOOKED_PATH = path.join(DATA_DIR, 'booked.xlsx');
+    if (!fs.existsSync(DATA_DIR)) {
+      fs.mkdirSync(DATA_DIR, { recursive: true });
+    }
+    fs.writeFileSync(BOOKED_PATH, req.file.buffer);
+    // Count rows
+    const XLSX = require('xlsx');
+    const wb = XLSX.read(req.file.buffer);
+    const firstSheet = wb.SheetNames[0];
+    const ws = wb.Sheets[firstSheet];
+    const data = XLSX.utils.sheet_to_json(ws, { header: 1, defval: '' });
+    const rowCount = Math.max(0, data.length - 1); // Subtract header
+    res.json({ ok: true, message: `Uploaded booked.xlsx with ${rowCount} booking(s)` });
+  } catch (e) {
+    console.error('[booked/upload] Error:', e);
+    res.status(500).json({ error: e.message || 'Failed to upload booked file' });
   }
 });
 
