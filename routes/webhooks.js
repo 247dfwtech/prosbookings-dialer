@@ -235,10 +235,10 @@ router.post('/booking-tool', async (req, res) => {
     end: args.end || '',
     attendeeEmail: args.attendeeEmail,
     customerName: args.customerName,
-    customerPhone: args.CustomerPhone ?? args.customerPhone ?? '',
+    customerPhone: args.CustomerPhone || args.customerPhone || '',
     customerAddress: args.customerAddress || '',
     recordingUrl: args.recordingUrl || '',
-    summary: args.Summary ?? args.summary || 'Home energy efficiency appointment',
+    summary: args.Summary || args.summary || 'Home energy efficiency appointment',
     description: args.description || "Booked by the Vapi calling assistant.",
   };
 
