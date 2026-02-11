@@ -331,6 +331,48 @@ router.get('/booked/status', (req, res) => {
   }
 });
 
+router.get('/blacklist/data', (req, res) => {
+  const DATA_DIR = process.env.APP_DATA_DIR || path.join(__dirname, '..', 'data');
+  const BLACKLIST_PATH = path.join(DATA_DIR, 'blacklist.txt');
+  if (!fs.existsSync(BLACKLIST_PATH)) {
+    // Return empty list instead of 404 so UI still works
+    return res.json({ phones: [] });
+  }
+  try {
+    const content = fs.readFileSync(BLACKLIST_PATH, 'utf8');
+    const phones = content
+      .split(/\r?\n/)
+      .map((line) => line.trim())
+      .filter((line) => line.length > 0);
+    res.json({ phones });
+  } catch (e) {
+    console.error('[blacklist/data] Error:', e);
+    res.json({ phones: [] });
+  }
+});
+
+router.get('/booked/data', (req, res) => {
+  const DATA_DIR = process.env.APP_DATA_DIR || path.join(__dirname, '..', 'data');
+  const BOOKED_PATH = path.join(DATA_DIR, 'booked.xlsx');
+  if (!fs.existsSync(BOOKED_PATH)) {
+    // Return empty table instead of 404 so UI still works
+    return res.json({ headers: [], rows: [] });
+  }
+  try {
+    const XLSX = require('xlsx');
+    const wb = XLSX.readFile(BOOKED_PATH);
+    const firstSheet = wb.SheetNames[0];
+    const ws = wb.Sheets[firstSheet];
+    const data = XLSX.utils.sheet_to_json(ws, { header: 1, defval: '' });
+    const headers = (data[0] || []).map((h) => String(h || ''));
+    const rows = data.slice(1).map((row) => row.map((cell) => String(cell ?? '')));
+    res.json({ headers, rows });
+  } catch (e) {
+    console.error('[booked/data] Error:', e);
+    res.json({ headers: [], rows: [] });
+  }
+});
+
 router.get('/blacklist/download', (req, res) => {
   const DATA_DIR = process.env.APP_DATA_DIR || path.join(__dirname, '..', 'data');
   const BLACKLIST_PATH = path.join(DATA_DIR, 'blacklist.txt');
