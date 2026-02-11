@@ -828,6 +828,34 @@
     }
   });
 
+  document.getElementById('btn-clear-blacklist-booked').addEventListener('click', async () => {
+    if (!confirm('Clear blacklist and booked? This will remove all phone numbers from blacklist.txt and all rows from booked.xlsx. This cannot be undone.')) {
+      return;
+    }
+    const btn = document.getElementById('btn-clear-blacklist-booked');
+    const prevText = btn.textContent;
+    btn.disabled = true;
+    btn.textContent = 'Clearing…';
+    try {
+      const data = await api('/api/upload/clear-blacklist-booked', { method: 'POST' });
+      if (data.ok) {
+        updateBlacklistBookedStatus();
+        if (window.__currentSpecialView === 'blacklist' || window.__currentSpecialView === 'booked') {
+          document.getElementById('spreadsheet-view-section').style.display = 'none';
+          window.__currentSpecialView = null;
+        }
+        alert(data.message || 'Blacklist and booked cleared.');
+      } else {
+        alert(data.error || 'Clear failed');
+      }
+    } catch (e) {
+      alert(e.message || 'Clear failed (network error)');
+    } finally {
+      btn.disabled = false;
+      btn.textContent = prevText;
+    }
+  });
+
   async function init() {
     const list = await loadUploads();
     window.__uploadList = list;

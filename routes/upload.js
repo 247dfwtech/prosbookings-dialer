@@ -8,8 +8,8 @@ const router = express.Router();
 const { listUploads, saveUploadMeta, getUploadMeta, removeUpload } = require('../lib/upload-store');
 const { getConfig, updateConfig } = require('../lib/store');
 const { readSheet, findHeaders, normalizeRow, findRowByPhone } = require('../lib/spreadsheet');
-const { addToBlacklist } = require('../lib/blacklist');
-const { addBooking } = require('../lib/booked');
+const { addToBlacklist, clearBlacklist } = require('../lib/blacklist');
+const { addBooking, clearBooked } = require('../lib/booked');
 
 const UPLOAD_DIR = process.env.APP_UPLOAD_DIR || path.join(__dirname, '..', 'uploads');
 const MAX_SIZE = 10 * 1024 * 1024;
@@ -329,6 +329,17 @@ router.get('/booked/status', (req, res) => {
     res.json({ exists: true, count: rowCount });
   } catch (e) {
     res.json({ exists: true, count: 0, error: e.message });
+  }
+});
+
+router.post('/clear-blacklist-booked', (req, res) => {
+  try {
+    clearBlacklist();
+    clearBooked();
+    res.json({ ok: true, message: 'Blacklist and booked files cleared.' });
+  } catch (e) {
+    console.error('[clear-blacklist-booked] Error:', e);
+    res.status(500).json({ error: e.message || 'Failed to clear files' });
   }
 });
 
