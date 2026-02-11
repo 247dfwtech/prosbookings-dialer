@@ -331,7 +331,8 @@ router.get('/booked/status', (req, res) => {
   }
 });
 
-router.get('/blacklist/data', (req, res) => {
+// Note: use /system/* paths so they don't conflict with /:uploadId/data
+router.get('/system/blacklist/data', (req, res) => {
   const DATA_DIR = process.env.APP_DATA_DIR || path.join(__dirname, '..', 'data');
   const BLACKLIST_PATH = path.join(DATA_DIR, 'blacklist.txt');
   if (!fs.existsSync(BLACKLIST_PATH)) {
@@ -351,7 +352,7 @@ router.get('/blacklist/data', (req, res) => {
   }
 });
 
-router.get('/booked/data', (req, res) => {
+router.get('/system/booked/data', (req, res) => {
   const DATA_DIR = process.env.APP_DATA_DIR || path.join(__dirname, '..', 'data');
   const BOOKED_PATH = path.join(DATA_DIR, 'booked.xlsx');
   if (!fs.existsSync(BOOKED_PATH)) {

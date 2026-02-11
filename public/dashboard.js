@@ -122,7 +122,7 @@
 
   async function viewBlacklist() {
     try {
-      const data = await api('/api/upload/blacklist/data');
+      const data = await api('/api/upload/system/blacklist/data');
       const section = document.getElementById('spreadsheet-view-section');
       document.getElementById('sheet-view-title').textContent = 'blacklist.txt';
       const downloadLink = document.getElementById('btn-download-current-sheet');
@@ -156,7 +156,7 @@
 
   async function viewBooked() {
     try {
-      const data = await api('/api/upload/booked/data');
+      const data = await api('/api/upload/system/booked/data');
       const section = document.getElementById('spreadsheet-view-section');
       document.getElementById('sheet-view-title').textContent = 'booked.xlsx';
       const downloadLink = document.getElementById('btn-download-current-sheet');
