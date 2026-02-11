@@ -219,6 +219,7 @@ router.post('/update-blacklists', (req, res) => {
               address: row.address || '',
               phone: row.phone || '',
               transcript: row.transcript || '',
+              audioUrl: '',
             })) {
               bookedCount++;
             }

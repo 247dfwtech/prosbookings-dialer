@@ -14,17 +14,36 @@ const { createEvent } = require('../lib/calendar');
 const { updateState } = require('../lib/store');
 const { recordCallEnded, recordBooking } = require('../lib/stats');
 const { addToBlacklist } = require('../lib/blacklist');
+const { addBooking } = require('../lib/booked');
 
 const TEST_PHONE_LAST10 = new Set(['2146002023', '8178086172', '9156379939']);
 
+// VAPI ended reasons that indicate a bad/unreachable number or connectivity failure — we blacklist the number.
+// See https://docs.vapi.ai/calls/call-ended-reason
 const BAD_NUMBER_ENDED_REASONS = new Set([
+  // Call start errors (transport, customer, phone number, etc.)
   'call.start.error-get-transport',
   'call.start.error-get-customer',
+  'call.start.error-get-org',
+  'call.start.error-get-subscription',
+  'call.start.error-get-assistant',
+  'call.start.error-get-phone-number',
+  'call.start.error-get-resources-validation',
+  'call.start.error-vapi-number-international',
+  'call.start.error-vapi-number-outbound-daily-limit',
+  'call-start-error-neither-assistant-nor-server-set',
+  // Twilio
   'twilio-failed-to-connect-call',
   'twilio-reported-customer-misdialed',
+  // Vonage
   'vonage-failed-to-connect-call',
   'vonage-rejected',
+  'vonage-disconnected',
+  // SIP / provider connectivity
   'call.in-progress.error-sip-telephony-provider-failed-to-connect-call',
+  'phone-call-provider-closed-websocket',
+  'phone-call-provider-bypass-enabled-but-no-call-received',
+  // Our synthetic: scheduler timed out waiting for webhook (no VAPI end event received)
   'call-failed-timeout',
 ]);
 
@@ -40,6 +59,12 @@ function applyCallEnded(message) {
   const successEvaluation = analysis.successEvaluation ?? (message.successEvaluation ?? '');
   const artifact = message.artifact || {};
   let transcript = artifact.transcript ?? (message.transcript ?? '');
+  const audioUrl =
+    artifact.audioUrl ||
+    artifact.recordingUrl ||
+    message.recordingUrl ||
+    (analysis.recording && analysis.recording.url) ||
+    '';
   // Put each speaker turn on its own line in the spreadsheet
   transcript = transcript.replace(/\s+AI:\s+/g, '\nAI: ').replace(/\s+User:\s+/g, '\nUser: ').trim();
 
@@ -67,6 +92,27 @@ function applyCallEnded(message) {
         console.error('Webhook vapi updateRow:', e);
       }
     }
+    
+    // If appointment was booked (successEvaluation === 'True'), add to booked.xlsx
+    if (successEvaluation && String(successEvaluation).trim().toLowerCase() === 'true') {
+      const { readSheet, findHeaders, normalizeRow } = require('../lib/spreadsheet');
+      try {
+        const { data } = readSheet(meta.path);
+        const headers = findHeaders(data);
+        const row = normalizeRow(data[rowIndex], headers);
+        addBooking({
+          firstName: row.firstName || '',
+          lastName: row.lastName || '',
+          address: row.address || '',
+          phone: row.phone || customerNumber || '',
+          transcript: transcript || '',
+          audioUrl: audioUrl || '',
+        });
+      } catch (e) {
+        console.error('[webhook] Error adding to booked.xlsx:', e.message);
+      }
+    }
+    
     if (customerNumber && BAD_NUMBER_ENDED_REASONS.has(endedReason)) {
       if (addToBlacklist(customerNumber)) {
         console.log('[webhook] Added to blacklist (bad number):', customerNumber, endedReason);
