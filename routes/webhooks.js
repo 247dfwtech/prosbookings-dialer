@@ -229,15 +229,16 @@ router.post('/booking-tool', async (req, res) => {
   const toolCallId = first.id;
   const args = first.arguments || first.parameters || {};
 
+  // Map tool params (dashboard may use Summary, CustomerPhone) to our booking body
   const body = {
-    start: args.start,
-    end: args.end,
+    start: args.start || '',
+    end: args.end || '',
     attendeeEmail: args.attendeeEmail,
     customerName: args.customerName,
-    customerPhone: args.customerPhone,
+    customerPhone: args.CustomerPhone ?? args.customerPhone ?? '',
     customerAddress: args.customerAddress || '',
     recordingUrl: args.recordingUrl || '',
-    summary: args.summary || 'Home energy efficiency appointment',
+    summary: args.Summary ?? args.summary || 'Home energy efficiency appointment',
     description: args.description || "Booked by the Vapi calling assistant.",
   };
 
