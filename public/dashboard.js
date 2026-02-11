@@ -108,14 +108,84 @@
       const downloadLink = document.getElementById('btn-download-current-sheet');
       if (downloadLink) {
         downloadLink.href = `/api/upload/${encodeURIComponent(uploadId)}/download`;
-        downloadLink.setAttribute('download', '');
+        downloadLink.setAttribute('download', data.originalName || '');
       }
       section.style.display = 'block';
       window.__currentSheetUploadId = uploadId;
       window.__currentSheetData = data;
+      window.__currentSpecialView = null;
       renderSheetTable(data.headers, data.rows);
     } catch (e) {
       alert(e.message || 'Failed to load spreadsheet');
+    }
+  }
+
+  async function viewBlacklist() {
+    try {
+      const data = await api('/api/upload/blacklist/data');
+      const section = document.getElementById('spreadsheet-view-section');
+      document.getElementById('sheet-view-title').textContent = 'blacklist.txt';
+      const downloadLink = document.getElementById('btn-download-current-sheet');
+      if (downloadLink) {
+        downloadLink.href = '/api/upload/blacklist/download';
+        downloadLink.setAttribute('download', 'blacklist.txt');
+      }
+      section.style.display = 'block';
+      window.__currentSheetUploadId = null;
+      window.__currentSheetData = null;
+      window.__currentSpecialView = 'blacklist';
+      filterSuccessOnly = false;
+      const btnFilter = document.getElementById('btn-filter-success');
+      if (btnFilter) {
+        btnFilter.textContent = 'Success evaluation True';
+        btnFilter.classList.remove('btn-primary');
+        btnFilter.classList.add('btn-secondary');
+      }
+      const table = document.getElementById('sheet-table');
+      const phones = data.phones || [];
+      let html = '<thead><tr><th>Phone</th></tr></thead><tbody>';
+      phones.forEach((p) => {
+        html += `<tr><td>${escapeHtml(String(p))}</td></tr>`;
+      });
+      html += '</tbody>';
+      table.innerHTML = html;
+    } catch (e) {
+      alert(e.message || 'Failed to load blacklist');
+    }
+  }
+
+  async function viewBooked() {
+    try {
+      const data = await api('/api/upload/booked/data');
+      const section = document.getElementById('spreadsheet-view-section');
+      document.getElementById('sheet-view-title').textContent = 'booked.xlsx';
+      const downloadLink = document.getElementById('btn-download-current-sheet');
+      if (downloadLink) {
+        downloadLink.href = '/api/upload/booked/download';
+        downloadLink.setAttribute('download', 'booked.xlsx');
+      }
+      section.style.display = 'block';
+      window.__currentSheetUploadId = null;
+      window.__currentSheetData = null;
+      window.__currentSpecialView = 'booked';
+      filterSuccessOnly = false;
+      const btnFilter = document.getElementById('btn-filter-success');
+      if (btnFilter) {
+        btnFilter.textContent = 'Success evaluation True';
+        btnFilter.classList.remove('btn-primary');
+        btnFilter.classList.add('btn-secondary');
+      }
+      const table = document.getElementById('sheet-table');
+      const headers = data.headers || [];
+      const rows = data.rows || [];
+      let html = '<thead><tr>' + headers.map((h) => `<th>${escapeHtml(String(h))}</th>`).join('') + '</tr></thead><tbody>';
+      rows.forEach((row) => {
+        html += '<tr>' + headers.map((_, idx) => `<td>${escapeHtml(String(row[idx] ?? ''))}</td>`).join('') + '</tr>';
+      });
+      html += '</tbody>';
+      table.innerHTML = html;
+    } catch (e) {
+      alert(e.message || 'Failed to load booked.xlsx');
     }
   }
 
@@ -509,7 +579,13 @@
   });
 
   document.getElementById('btn-refresh-sheet').addEventListener('click', () => {
-    if (window.__currentSheetUploadId) viewSpreadsheet(window.__currentSheetUploadId);
+    if (window.__currentSheetUploadId) {
+      viewSpreadsheet(window.__currentSheetUploadId);
+    } else if (window.__currentSpecialView === 'blacklist') {
+      viewBlacklist();
+    } else if (window.__currentSpecialView === 'booked') {
+      viewBooked();
+    }
   });
 
   document.getElementById('btn-filter-success').addEventListener('click', () => {
@@ -617,24 +693,14 @@
       
       const blacklistEl = document.getElementById('blacklist-status');
       const bookedEl = document.getElementById('booked-status');
-      const blacklistLink = document.getElementById('link-blacklist-download');
-      const bookedLink = document.getElementById('link-booked-download');
       
       if (blacklistEl) {
         if (blacklistStatus.exists && blacklistStatus.count > 0) {
           blacklistEl.textContent = `(${blacklistStatus.count} phone${blacklistStatus.count !== 1 ? 's' : ''})`;
           blacklistEl.style.color = '#666';
-          if (blacklistLink) {
-            blacklistLink.style.opacity = '1';
-            blacklistLink.style.pointerEvents = 'auto';
-          }
         } else {
           blacklistEl.textContent = '(empty)';
           blacklistEl.style.color = '#999';
-          if (blacklistLink) {
-            blacklistLink.style.opacity = '0.5';
-            blacklistLink.style.pointerEvents = 'none';
-          }
         }
       }
       
@@ -642,17 +708,9 @@
         if (bookedStatus.exists && bookedStatus.count > 0) {
           bookedEl.textContent = `(${bookedStatus.count} booking${bookedStatus.count !== 1 ? 's' : ''})`;
           bookedEl.style.color = '#666';
-          if (bookedLink) {
-            bookedLink.style.opacity = '1';
-            bookedLink.style.pointerEvents = 'auto';
-          }
         } else {
           bookedEl.textContent = '(empty)';
           bookedEl.style.color = '#999';
-          if (bookedLink) {
-            bookedLink.style.opacity = '0.5';
-            bookedLink.style.pointerEvents = 'none';
-          }
         }
       }
     } catch (e) {
@@ -701,6 +759,16 @@
   // Upload booked.xlsx
   document.getElementById('btn-upload-booked').addEventListener('click', () => {
     document.getElementById('booked-upload-input').click();
+  });
+
+  document.getElementById('btn-view-blacklist').addEventListener('click', (e) => {
+    e.preventDefault();
+    viewBlacklist();
+  });
+
+  document.getElementById('btn-view-booked').addEventListener('click', (e) => {
+    e.preventDefault();
+    viewBooked();
   });
   document.getElementById('booked-upload-input').addEventListener('change', async () => {
     const input = document.getElementById('booked-upload-input');
