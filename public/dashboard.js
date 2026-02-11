@@ -624,10 +624,17 @@
         if (blacklistStatus.exists && blacklistStatus.count > 0) {
           blacklistEl.textContent = `(${blacklistStatus.count} phone${blacklistStatus.count !== 1 ? 's' : ''})`;
           blacklistEl.style.color = '#666';
+          if (blacklistLink) {
+            blacklistLink.style.opacity = '1';
+            blacklistLink.style.pointerEvents = 'auto';
+          }
         } else {
           blacklistEl.textContent = '(empty)';
           blacklistEl.style.color = '#999';
-          if (blacklistLink) blacklistLink.style.opacity = '0.5';
+          if (blacklistLink) {
+            blacklistLink.style.opacity = '0.5';
+            blacklistLink.style.pointerEvents = 'none';
+          }
         }
       }
       
@@ -635,10 +642,17 @@
         if (bookedStatus.exists && bookedStatus.count > 0) {
           bookedEl.textContent = `(${bookedStatus.count} booking${bookedStatus.count !== 1 ? 's' : ''})`;
           bookedEl.style.color = '#666';
+          if (bookedLink) {
+            bookedLink.style.opacity = '1';
+            bookedLink.style.pointerEvents = 'auto';
+          }
         } else {
           bookedEl.textContent = '(empty)';
           bookedEl.style.color = '#999';
-          if (bookedLink) bookedLink.style.opacity = '0.5';
+          if (bookedLink) {
+            bookedLink.style.opacity = '0.5';
+            bookedLink.style.pointerEvents = 'none';
+          }
         }
       }
     } catch (e) {
