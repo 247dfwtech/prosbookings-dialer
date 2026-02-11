@@ -144,8 +144,12 @@ router.post('/vapi', (req, res) => {
   res.status(200).json({ received: true });
 });
 
-router.post('/booking', async (req, res) => {
-  const body = req.body || {};
+/**
+ * Shared booking logic: calendar event + confirmation email + stats.
+ * @param {object} body - { start, end, attendeeEmail, customerName, customerPhone, customerAddress?, recordingUrl?, summary?, description? }
+ * @returns {{ success: true, message: string, eventId?: string }}
+ */
+async function executeBooking(body) {
   const {
     summary,
     description,
@@ -154,7 +158,7 @@ router.post('/booking', async (req, res) => {
     attendeeEmail,
     customerName,
     customerPhone,
-  } = body;
+  } = body || {};
   const customerAddress = body.customerAddress || body.address || '';
   const recordingUrl =
     body.recordingUrl ||
@@ -163,44 +167,93 @@ router.post('/booking', async (req, res) => {
     (body.analysis && body.analysis.recording && body.analysis.recording.url) ||
     '';
 
+  const startDt = start || body.startDateTime || body.dateTime;
+  const endDt = end || body.endDateTime || body.endTime;
+  if (!startDt || !endDt) {
+    throw new Error('start and end date/time required');
+  }
+
+  const calResult = await createEvent({
+    summary: summary || 'Appointment',
+    description: description || '',
+    start: startDt,
+    end: endDt,
+    attendeeEmail: attendeeEmail || body.attendee,
+  });
+
+  const details = {
+    summary: summary || 'Appointment',
+    start: startDt,
+    end: endDt,
+    customerName,
+    customerPhone,
+    customerAddress,
+    attendeeEmail,
+    recordingUrl,
+    calendarEventId: calResult?.id,
+  };
+
+  await sendBookingConfirmation(details).catch((e) => console.error('Booking email failed:', e));
+  recordBooking();
+
+  return {
+    success: true,
+    message: 'Appointment booked',
+    eventId: calResult?.id,
+  };
+}
+
+router.post('/booking', async (req, res) => {
   try {
-    const startDt = start || body.startDateTime || body.dateTime;
-    const endDt = end || body.endDateTime || body.endTime;
-    if (!startDt || !endDt) {
-      return res.status(400).json({ error: 'start and end date/time required' });
-    }
-
-    const calResult = await createEvent({
-      summary: summary || 'Appointment',
-      description: description || '',
-      start: startDt,
-      end: endDt,
-      attendeeEmail: attendeeEmail || body.attendee,
-    });
-
-    const details = {
-      summary: summary || 'Appointment',
-      start: startDt,
-      end: endDt,
-      customerName,
-      customerPhone,
-      customerAddress,
-      attendeeEmail,
-      recordingUrl,
-      calendarEventId: calResult?.id,
-    };
-
-    await sendBookingConfirmation(details).catch((e) => console.error('Booking email failed:', e));
-    recordBooking();
-
-    res.status(200).json({
-      success: true,
-      message: 'Appointment booked',
-      eventId: calResult?.id,
-    });
+    const result = await executeBooking(req.body);
+    res.status(200).json(result);
   } catch (e) {
     console.error('Booking webhook:', e);
-    res.status(500).json({ error: e.message || 'Booking failed' });
+    const status = e.message && e.message.includes('required') ? 400 : 500;
+    res.status(status).json({ error: e.message || 'Booking failed' });
+  }
+});
+
+/**
+ * VAPI function-tool adapter: receives tool-call payload, extracts arguments,
+ * runs booking, returns { results: [ { toolCallId, result } ] }.
+ */
+router.post('/booking-tool', async (req, res) => {
+  const payload = req.body || {};
+  const message = payload.message || {};
+  const toolCallList = message.toolCallList || message.toolCalls || [];
+  const first = toolCallList[0];
+  if (!first || !first.id) {
+    return res.status(400).json({ error: 'Missing toolCallList[0].id' });
+  }
+  const toolCallId = first.id;
+  const args = first.arguments || first.parameters || {};
+
+  const body = {
+    start: args.start,
+    end: args.end,
+    attendeeEmail: args.attendeeEmail,
+    customerName: args.customerName,
+    customerPhone: args.customerPhone,
+    customerAddress: args.customerAddress || '',
+    recordingUrl: args.recordingUrl || '',
+    summary: args.summary || 'Home energy efficiency appointment',
+    description: args.description || "Booked by the Vapi calling assistant.",
+  };
+
+  try {
+    const result = await executeBooking(body);
+    const resultText = result.eventId
+      ? `Appointment booked. Event ID: ${result.eventId}.`
+      : result.message;
+    return res.status(200).json({
+      results: [{ toolCallId, result: resultText }],
+    });
+  } catch (e) {
+    console.error('Booking tool webhook:', e);
+    return res.status(200).json({
+      results: [{ toolCallId, result: `Booking failed: ${e.message || 'Unknown error'}.` }],
+    });
   }
 });
 

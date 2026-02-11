@@ -16,8 +16,12 @@ function validateEnv() {
 }
 validateEnv();
 
-const UPLOAD_DIR = path.join(__dirname, 'uploads');
-const DATA_DIR = path.join(__dirname, 'data');
+// On Railway, set PERSISTENT_DATA_PATH to your volume mount (e.g. /app/uploads) so uploads, config, and voicemail settings survive deploys.
+const persistentRoot = process.env.PERSISTENT_DATA_PATH || '';
+const UPLOAD_DIR = persistentRoot ? path.join(persistentRoot) : path.join(__dirname, 'uploads');
+const DATA_DIR = persistentRoot ? path.join(persistentRoot, '.data') : path.join(__dirname, 'data');
+process.env.APP_UPLOAD_DIR = UPLOAD_DIR;
+process.env.APP_DATA_DIR = DATA_DIR;
 try {
   if (!fs.existsSync(UPLOAD_DIR)) fs.mkdirSync(UPLOAD_DIR, { recursive: true });
   if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR, { recursive: true });

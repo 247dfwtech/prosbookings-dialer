@@ -53,7 +53,7 @@ Generate password hash: `node scripts/hash-password.js`.
 
 ## Deploying on Railway (step-by-step)
 
-On Railway, the app’s disk is **temporary**: every time you deploy or the app restarts, anything saved (dialer settings, uploaded spreadsheets) is wiped. So test calls and the dialer can “do nothing” because config and uploads are gone. Fix this by adding **persistent storage** (volumes) so the app can save data that survives restarts and deploys.
+On Railway, the app’s disk is **temporary**: every time you deploy or the app restarts, anything saved (dialer settings, uploaded spreadsheets, voicemail messages) is wiped. So test calls and the dialer can “do nothing” because config and uploads are gone. Fix this by adding a **volume** with mount path `/app/uploads` and setting **Variables** → **`PERSISTENT_DATA_PATH`** = **`/app/uploads`** so the app stores all data (uploads, config, voicemail) on that volume.
 
 ### Step 1: Open your project on Railway
 
@@ -61,34 +61,25 @@ On Railway, the app’s disk is **temporary**: every time you deploy or the app 
 2. Open the project that has your **Prosbookings Dialer** app (the one you deployed from GitHub).
 3. Click on the **service** that runs the dialer (the box that shows your app name, e.g. “prosbookings-dialer” or similar). You should see tabs like **Deployments**, **Settings**, **Variables**, etc.
 
-### Step 2: Add the first volume (for config and state)
+### Step 2: Add a volume and set the variable
 
 1. In the left sidebar for that service, click **“Volumes”** (or find it under **Resources** / **Storage** depending on Railway’s current UI).
 2. If you don’t see “Volumes”, look for **“+ New”** or **“Add volume”** or a **“Storage”** section.
 3. Click **“Add Volume”** or **“Create Volume”**.
 4. You’ll be asked for a **mount path**. This is the folder path inside the app where the volume will appear. Type exactly:
    ```text
-   /app/data
-   ```
-5. Give the volume a name if asked (e.g. `dialer-data`). Then confirm/create the volume.
-
-### Step 3: Add the second volume (for uploads)
-
-1. Add **another** volume the same way (click **“Add Volume”** again).
-2. For this one, set the **mount path** to:
-   ```text
    /app/uploads
    ```
-3. Name it if you want (e.g. `dialer-uploads`). Create it.
+5. In **Variables**, add **`PERSISTENT_DATA_PATH`** = **`/app/uploads`**. Then create the volume and redeploy.
 
-### Step 4: Redeploy so the volumes are used
+### Step 3: Redeploy
 
-1. After adding both volumes, the app needs to restart with the new mounts. Either:
+1. After adding the volume and variable, redeploy. Either:
    - Use **“Redeploy”** or **“Deploy”** from the latest deployment (e.g. from the **Deployments** tab), or  
    - Push a small change to your GitHub repo so Railway deploys again.
 2. Wait until the deployment finishes (green / “Success” or “Active”).
 
-### Step 5: Configure the app again (one time after adding volumes)
+### Step 4: Configure the app again (one time after adding the volume)
 
 The first time after adding volumes, the app may start with empty storage. Do this once:
 
@@ -109,7 +100,7 @@ From now on, this config and your uploads are stored on the volumes. They will *
   Railway sometimes moves this. Look under **Settings** → **Storage**, or **Resources**, or search the dashboard for “Volume” or “Persistent storage”.
 
 - **Mount path**  
-  It must be exactly `/app/data` and `/app/uploads` (no typo, no extra slash at the end). Railway runs your app from `/app`, so these paths are correct for this project.
+  Use exactly `/app/uploads` (no extra slash). If you use one volume + `PERSISTENT_DATA_PATH=/app/uploads`, that’s enough for everything to persist.
 
 - **After redeploy, config or uploads are still gone**  
-  Make sure both volumes were created and show as attached to this service. Check the mount paths. Then redeploy once more and configure again; after that it should stick.
+  Ensure **Variables** includes **`PERSISTENT_DATA_PATH`** = **`/app/uploads`** (same as the volume mount path). Redeploy, then configure again once; after that it should stick.
