@@ -155,6 +155,13 @@ router.post('/booking', async (req, res) => {
     customerName,
     customerPhone,
   } = body;
+  const customerAddress = body.customerAddress || body.address || '';
+  const recordingUrl =
+    body.recordingUrl ||
+    body.audioUrl ||
+    body.callRecordingUrl ||
+    (body.analysis && body.analysis.recording && body.analysis.recording.url) ||
+    '';
 
   try {
     const startDt = start || body.startDateTime || body.dateTime;
@@ -177,7 +184,9 @@ router.post('/booking', async (req, res) => {
       end: endDt,
       customerName,
       customerPhone,
+      customerAddress,
       attendeeEmail,
+      recordingUrl,
       calendarEventId: calResult?.id,
     };
 
