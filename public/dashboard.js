@@ -190,6 +190,15 @@
           ${phoneNumbers.length === 0 ? '<p class="status">Click "Get latest VAPI info" first.</p>' : phoneNumbers.map((p) => `<label><input type="checkbox" class="dialer-phone" data-id="${p.id}" data-dialer="${dialerId}" ${selectedPhones.includes(p.id) ? 'checked' : ''}> ${escapeHtml(p.number || p.id)}</label>`).join('')}
         </div>
 
+        <label>Days of week</label>
+        <div class="row days-of-week">
+          ${['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].map((day, idx) => {
+            const dayNum = idx === 6 ? 0 : idx + 1; // Sun=0, Mon=1, ..., Sat=6
+            const checked = (d.daysOfWeek || [1,2,3,4,5]).includes(dayNum);
+            return `<label class="${checked ? 'day-checked' : ''}"><input type="checkbox" class="dialer-day" data-day="${dayNum}" data-dialer="${dialerId}" ${checked ? 'checked' : ''}> ${day}</label>`;
+          }).join('')}
+        </div>
+
         <label>Run window (CST)</label>
         <div class="row run-window">
           <input type="time" class="dialer-start-time" data-dialer="${dialerId}" value="${d.startTime || ''}" placeholder="Start">
@@ -322,6 +331,8 @@
     const endTime = root.querySelector('.dialer-end-time');
     const targetZip = root.querySelector('.dialer-target-zip');
     const phoneChecks = root.querySelectorAll('.dialer-phone:checked');
+    const dayChecks = root.querySelectorAll('.dialer-day:checked');
+    const daysOfWeek = Array.from(dayChecks).map((c) => parseInt(c.dataset.day, 10));
     return {
       dialerId,
       spreadsheetId: spreadsheet?.value || '',
@@ -335,6 +346,7 @@
       startTime: startTime?.value || '',
       endTime: endTime?.value || '',
       targetZip: targetZip?.value?.trim() || '',
+      daysOfWeek: daysOfWeek.length > 0 ? daysOfWeek : [1, 2, 3, 4, 5], // Default Mon-Fri if none selected
     };
   }
 
@@ -403,6 +415,17 @@
     });
     document.querySelectorAll('.dialer-target-zip').forEach((inp) => {
       inp.addEventListener('blur', () => saveDialerConfig(inp.dataset.dialer));
+    });
+    document.querySelectorAll('.dialer-day').forEach((cb) => {
+      cb.addEventListener('change', () => {
+        const label = cb.closest('label');
+        if (cb.checked) {
+          label.classList.add('day-checked');
+        } else {
+          label.classList.remove('day-checked');
+        }
+        saveDialerConfig(cb.dataset.dialer);
+      });
     });
     document.querySelectorAll('.dialer-phone').forEach((cb) => {
       cb.addEventListener('change', () => {
@@ -581,6 +604,127 @@
     }
   });
 
+  document.getElementById('btn-download-all').addEventListener('click', () => {
+    window.location.href = '/api/upload/download-all';
+  });
+
+  async function updateBlacklistBookedStatus() {
+    try {
+      const [blacklistStatus, bookedStatus] = await Promise.all([
+        api('/api/upload/blacklist/status').catch(() => ({ exists: false, count: 0 })),
+        api('/api/upload/booked/status').catch(() => ({ exists: false, count: 0 })),
+      ]);
+      
+      const blacklistEl = document.getElementById('blacklist-status');
+      const bookedEl = document.getElementById('booked-status');
+      const blacklistLink = document.getElementById('link-blacklist-download');
+      const bookedLink = document.getElementById('link-booked-download');
+      
+      if (blacklistEl) {
+        if (blacklistStatus.exists && blacklistStatus.count > 0) {
+          blacklistEl.textContent = `(${blacklistStatus.count} phone${blacklistStatus.count !== 1 ? 's' : ''})`;
+          blacklistEl.style.color = '#666';
+        } else {
+          blacklistEl.textContent = '(empty)';
+          blacklistEl.style.color = '#999';
+          if (blacklistLink) blacklistLink.style.opacity = '0.5';
+        }
+      }
+      
+      if (bookedEl) {
+        if (bookedStatus.exists && bookedStatus.count > 0) {
+          bookedEl.textContent = `(${bookedStatus.count} booking${bookedStatus.count !== 1 ? 's' : ''})`;
+          bookedEl.style.color = '#666';
+        } else {
+          bookedEl.textContent = '(empty)';
+          bookedEl.style.color = '#999';
+          if (bookedLink) bookedLink.style.opacity = '0.5';
+        }
+      }
+    } catch (e) {
+      console.error('Failed to update blacklist/booked status:', e);
+    }
+  }
+
+  // Upload blacklist.txt
+  document.getElementById('btn-upload-blacklist').addEventListener('click', () => {
+    document.getElementById('blacklist-upload-input').click();
+  });
+  document.getElementById('blacklist-upload-input').addEventListener('change', async () => {
+    const input = document.getElementById('blacklist-upload-input');
+    if (!input.files?.length) return;
+    const file = input.files[0];
+    if (file.name.toLowerCase() !== 'blacklist.txt') {
+      alert('File must be named blacklist.txt');
+      input.value = '';
+      return;
+    }
+    const form = new FormData();
+    form.append('file', file);
+    try {
+      const res = await fetch('/api/upload/blacklist/upload', {
+        method: 'POST',
+        body: form,
+        credentials: 'same-origin',
+      });
+      const data = await res.json().catch(() => ({}));
+      if (res.status === 401) {
+        window.location.href = '/';
+        return;
+      }
+      if (!res.ok) {
+        alert(data.error || 'Upload failed');
+        return;
+      }
+      alert(data.message || 'Blacklist uploaded successfully');
+      input.value = '';
+      updateBlacklistBookedStatus();
+    } catch (e) {
+      alert(e.message || 'Upload failed (network error)');
+    }
+  });
+
+  // Upload booked.xlsx
+  document.getElementById('btn-upload-booked').addEventListener('click', () => {
+    document.getElementById('booked-upload-input').click();
+  });
+  document.getElementById('booked-upload-input').addEventListener('change', async () => {
+    const input = document.getElementById('booked-upload-input');
+    if (!input.files?.length) return;
+    const file = input.files[0];
+    const name = file.name.toLowerCase();
+    if (name !== 'booked.xlsx' && name !== 'booked.xls') {
+      alert('File must be named booked.xlsx or booked.xls');
+      input.value = '';
+      return;
+    }
+    const form = new FormData();
+    form.append('file', file);
+    try {
+      const res = await fetch('/api/upload/booked/upload', {
+        method: 'POST',
+        body: form,
+        credentials: 'same-origin',
+      });
+      const data = await res.json().catch(() => ({}));
+      if (res.status === 401) {
+        window.location.href = '/';
+        return;
+      }
+      if (!res.ok) {
+        alert(data.error || 'Upload failed');
+        return;
+      }
+      alert(data.message || 'Booked file uploaded successfully');
+      input.value = '';
+      updateBlacklistBookedStatus();
+    } catch (e) {
+      alert(e.message || 'Upload failed (network error)');
+    }
+  });
+
+  // Update status on page load and after update-blacklists
+  updateBlacklistBookedStatus();
   document.getElementById('btn-update-blacklists').addEventListener('click', async () => {
     const btn = document.getElementById('btn-update-blacklists');
     const prevText = btn.textContent;
@@ -590,6 +734,7 @@
       const data = await api('/api/upload/update-blacklists', { method: 'POST' });
       if (data.ok) {
         alert(data.message || `Processed ${data.processed} spreadsheet(s). Added ${data.blacklisted} phone(s) to blacklist, ${data.booked} booking(s) to booked.xlsx.`);
+        updateBlacklistBookedStatus(); // Refresh status after update
       } else {
         alert(data.error || 'Update failed');
       }
@@ -599,10 +744,6 @@
       btn.disabled = false;
       btn.textContent = prevText;
     }
-  });
-
-  document.getElementById('btn-download-all').addEventListener('click', () => {
-    window.location.href = '/api/upload/download-all';
   });
 
   async function init() {

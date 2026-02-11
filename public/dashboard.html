@@ -6,7 +6,6 @@
   <title>Dashboard – Adrian's COLD Calling Beast</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="style.css">
 </head>
 <body class="dashboard">
@@ -31,6 +30,21 @@
     <button type="button" class="btn-secondary" id="btn-upload">Upload</button>
     <button type="button" class="btn-secondary" id="btn-download-all">Download all</button>
     <div class="file-list" id="file-list">No files uploaded.</div>
+    <div class="blacklist-booked-section" style="margin-top: 20px;">
+      <h3>Blacklist & Booked Appointments</h3>
+      <p>
+        <a href="/api/upload/blacklist/download" class="btn-secondary" id="link-blacklist-download" download>Download blacklist.txt</a> 
+        <span id="blacklist-status" style="margin-left: 10px;"></span>
+        <input type="file" id="blacklist-upload-input" accept=".txt" style="display:none">
+        <button type="button" class="btn-secondary" id="btn-upload-blacklist" style="margin-left: 10px;">Upload blacklist.txt</button>
+      </p>
+      <p>
+        <a href="/api/upload/booked/download" class="btn-secondary" id="link-booked-download" download>Download booked.xlsx</a>
+        <span id="booked-status" style="margin-left: 10px;"></span>
+        <input type="file" id="booked-upload-input" accept=".xlsx,.xls" style="display:none">
+        <button type="button" class="btn-secondary" id="btn-upload-booked" style="margin-left: 10px;">Upload booked.xlsx</button>
+      </p>
+    </div>
   </section>
 
   <section class="spreadsheet-view-section" id="spreadsheet-view-section" style="display: none;">

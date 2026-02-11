@@ -1,40 +1,91 @@
-/* Adrian's COLD Calling Beast – modern UI */
+/* Adrian's COLD Calling Beast – FREAK SHOW CARNIVAL THEME */
+@import url('https://fonts.googleapis.com/css2?family=Bungee&family=Bungee+Shade&family=Creepster&family=Rubik+Mono+One&display=swap');
+
 :root {
-  --bg: #0c0f14;
-  --bg-card: #151922;
-  --bg-elevated: #1a1f28;
-  --border: rgba(255, 255, 255, 0.08);
-  --border-focus: rgba(245, 158, 11, 0.5);
-  --text: #f1f5f9;
-  --text-muted: #94a3b8;
-  --text-dim: #64748b;
-  --accent: #f59e0b;
-  --accent-hover: #fbbf24;
-  --accent-dim: rgba(245, 158, 11, 0.15);
-  --success: #22c55e;
-  --success-dim: rgba(34, 197, 94, 0.15);
-  --warn: #f59e0b;
-  --danger: #ef4444;
-  --danger-hover: #f87171;
-  --link: #38bdf8;
-  --radius: 12px;
-  --radius-lg: 16px;
-  --shadow: 0 4px 24px rgba(0, 0, 0, 0.4);
-  --shadow-lg: 0 8px 32px rgba(0, 0, 0, 0.5);
+  /* Sideshow/Carnival Color Palette */
+  --clown-red: #ff1744;
+  --clown-yellow: #ffd700;
+  --clown-purple: #9c27b0;
+  --clown-pink: #ff4081;
+  --clown-orange: #ff6f00;
+  --clown-green: #00e676;
+  --carnival-black: #050507;
+  --carnival-dark: #101017;
+  --carnival-gray: #1d1d27;
+  --carnival-white: #fff;
+  --neon-cyan: #00ffff;
+  --neon-magenta: #ff00ff;
+  
+  /* Theme Colors */
+  --bg: var(--carnival-black);
+  --bg-card: var(--carnival-dark);
+  --bg-elevated: var(--carnival-gray);
+  --border: rgba(255, 215, 0, 0.25);
+  --border-focus: var(--clown-yellow);
+  --text: var(--carnival-white);
+  --text-muted: rgba(255, 255, 255, 0.7);
+  --text-dim: rgba(255, 255, 255, 0.5);
+  --accent: var(--clown-yellow);
+  --accent-hover: #ffed4e;
+  --accent-dim: rgba(255, 215, 0, 0.2);
+  --success: var(--clown-green);
+  --success-dim: rgba(0, 230, 118, 0.2);
+  --warn: var(--clown-orange);
+  --danger: var(--clown-red);
+  --danger-hover: #ff4569;
+  --link: var(--neon-cyan);
+  --radius: 8px;
+  --radius-lg: 12px;
+  --shadow: 0 4px 20px rgba(0, 0, 0, 0.6), 0 0 20px rgba(255, 215, 0, 0.1);
+  --shadow-lg: 0 8px 32px rgba(0, 0, 0, 0.8), 0 0 30px rgba(255, 215, 0, 0.15);
 }
 
 * { box-sizing: border-box; }
 
 body {
   margin: 0;
-  font-family: 'Outfit', system-ui, -apple-system, sans-serif;
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, "SF Pro Text", sans-serif;
   background: var(--bg);
-  background-image: radial-gradient(ellipse 80% 50% at 50% -20%, rgba(245, 158, 11, 0.08), transparent),
-                   linear-gradient(180deg, var(--bg) 0%, #0f1318 100%);
+  background-image: 
+    radial-gradient(ellipse 130% 70% at 50% -20%, rgba(120, 0, 26, 0.75), transparent),
+    radial-gradient(ellipse 90% 50% at 10% 90%, rgba(0, 0, 0, 0.9), transparent),
+    radial-gradient(ellipse 90% 50% at 90% 90%, rgba(0, 0, 0, 0.9), transparent),
+    repeating-linear-gradient(
+      135deg,
+      transparent,
+      transparent 12px,
+      rgba(120, 0, 26, 0.35) 12px,
+      rgba(120, 0, 26, 0.35) 16px
+    );
   color: var(--text);
   min-height: 100vh;
-  line-height: 1.5;
+  line-height: 1.6;
   -webkit-font-smoothing: antialiased;
+  position: relative;
+}
+
+body::before {
+  content: '';
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: 
+    repeating-linear-gradient(
+      0deg,
+      transparent,
+      transparent 3px,
+      rgba(255, 0, 76, 0.05) 3px,
+      rgba(255, 0, 76, 0.05) 6px
+    );
+  pointer-events: none;
+  z-index: 1;
+}
+
+body > * {
+  position: relative;
+  z-index: 2;
 }
 
 /* ----- Login ----- */
@@ -48,28 +99,78 @@ body {
 
 .login-box {
   background: var(--bg-card);
-  border: 1px solid var(--border);
+  border: 3px solid var(--clown-yellow);
   border-radius: var(--radius-lg);
   padding: 2.5rem;
   width: 100%;
-  max-width: 400px;
-  box-shadow: var(--shadow-lg);
+  max-width: 420px;
+  box-shadow: var(--shadow-lg), 0 0 40px rgba(255, 215, 0, 0.3);
+  position: relative;
+  overflow: hidden;
+}
+
+.login-box::before {
+  content: '☠';
+  position: absolute;
+  top: -20px;
+  right: -20px;
+  font-size: 120px;
+  opacity: 0.1;
+  transform: rotate(-15deg);
+}
+
+.login-box::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 10px;
+  background: linear-gradient(90deg, #7a001a, #b30024, #ff1744, #b30024, #7a001a);
+  clip-path: polygon(
+    0 0,
+    100% 0,
+    100% 40%,
+    95% 60%,
+    88% 35%,
+    80% 65%,
+    72% 30%,
+    65% 60%,
+    55% 35%,
+    48% 70%,
+    40% 35%,
+    30% 65%,
+    22% 30%,
+    15% 60%,
+    8% 35%,
+    0 55%
+  );
+  animation: bloodDrip 6s infinite ease-in-out;
+}
+
+@keyframes bloodDrip {
+  0%, 100% { transform: translateY(0); }
+  40% { transform: translateY(3px); }
+  60% { transform: translateY(6px); }
 }
 
 .app-title {
-  font-size: 1.75rem;
-  font-weight: 700;
-  margin: 0 0 0.25rem;
-  letter-spacing: -0.02em;
-  background: linear-gradient(135deg, var(--text) 0%, var(--text-muted) 100%);
+  font-family: 'Creepster', cursive;
+  font-size: 2rem;
+  font-weight: 400;
+  margin: 0 0 0.5rem;
+  letter-spacing: 0.05em;
+  background: linear-gradient(135deg, var(--clown-yellow) 0%, var(--clown-orange) 50%, var(--clown-red) 100%);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
+  text-shadow: 0 0 30px rgba(255, 215, 0, 0.5);
+  text-transform: uppercase;
 }
 
 .login-page .app-title {
-  font-size: 1.85rem;
-  background: linear-gradient(135deg, #fff 0%, var(--accent) 100%);
+  font-size: 2.2rem;
+  background: linear-gradient(135deg, var(--clown-yellow), var(--clown-red), var(--clown-purple));
   -webkit-background-clip: text;
   background-clip: text;
 }
@@ -78,28 +179,32 @@ body {
   color: var(--text-muted);
   margin: 0 0 1.75rem;
   font-size: 0.95rem;
-  font-weight: 500;
+  font-weight: 400;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
 }
 
 .login-box label {
   display: block;
   margin-bottom: 0.5rem;
-  font-size: 0.9rem;
-  font-weight: 500;
-  color: var(--text-muted);
+  font-size: 0.85rem;
+  font-weight: 400;
+  color: var(--clown-yellow);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
 }
 
 .login-box input {
   width: 100%;
-  padding: 0.85rem 1rem;
-  border: 1px solid var(--border);
+  padding: 0.9rem 1rem;
+  border: 2px solid var(--border);
   border-radius: var(--radius);
   background: var(--bg-elevated);
   color: var(--text);
   font-size: 1rem;
-  font-family: inherit;
+  font-family: 'Rubik Mono One', system-ui, sans-serif;
   margin-bottom: 1.25rem;
-  transition: border-color 0.2s, box-shadow 0.2s;
+  transition: all 0.3s;
 }
 
 .login-box input::placeholder {
@@ -108,43 +213,68 @@ body {
 
 .login-box input:focus {
   outline: none;
-  border-color: var(--accent);
-  box-shadow: 0 0 0 3px var(--accent-dim);
+  border-color: var(--clown-yellow);
+  box-shadow: 0 0 0 4px var(--accent-dim), 0 0 20px rgba(255, 215, 0, 0.4);
+  background: rgba(255, 215, 0, 0.05);
 }
 
 .login-box button {
   width: 100%;
-  padding: 0.9rem 1.25rem;
+  padding: 1rem 1.5rem;
   border: none;
   border-radius: var(--radius);
-  background: var(--accent);
-  color: #0c0f14;
+  background: linear-gradient(135deg, var(--clown-red), var(--clown-orange));
+  color: var(--carnival-white);
   font-size: 1rem;
-  font-weight: 600;
-  font-family: inherit;
+  font-weight: 700;
+  font-family: 'Bungee', cursive;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
   cursor: pointer;
-  transition: background 0.2s, transform 0.1s;
+  transition: all 0.3s;
+  box-shadow: 0 4px 15px rgba(255, 23, 68, 0.4);
+  position: relative;
+  overflow: hidden;
+}
+
+.login-box button::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.3), transparent);
+  transition: left 0.5s;
+}
+
+.login-box button:hover::before {
+  left: 100%;
 }
 
 .login-box button:hover {
-  background: var(--accent-hover);
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(255, 23, 68, 0.6);
+  filter: brightness(1.1);
 }
 
 .login-box button:active {
-  transform: scale(0.99);
+  transform: translateY(0);
 }
 
 #login-error.error {
-  color: var(--danger);
+  color: var(--clown-red);
   font-size: 0.9rem;
   margin-top: 1rem;
+  text-transform: uppercase;
+  font-weight: 700;
 }
 
 /* ----- Dashboard ----- */
 .dashboard {
-  max-width: 1280px;
+  max-width: 1400px;
   margin: 0 auto;
-  padding: 1.5rem;
+  padding: 2rem 1.5rem;
 }
 
 .dashboard-header {
@@ -152,56 +282,122 @@ body {
   justify-content: space-between;
   align-items: center;
   flex-wrap: wrap;
-  gap: 1rem;
-  margin-bottom: 2rem;
-  padding-bottom: 1.25rem;
-  border-bottom: 1px solid var(--border);
+  gap: 1.5rem;
+  margin-bottom: 2.5rem;
+  padding-bottom: 1.5rem;
+  border-bottom: 3px solid var(--clown-yellow);
+  position: relative;
+}
+
+.dashboard-header::after {
+  content: '🤡';
+  position: absolute;
+  right: 0;
+  top: -10px;
+  font-size: 40px;
+  opacity: 0.3;
+  animation: bounce 2s infinite;
+}
+
+@keyframes bounce {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-10px); }
 }
 
 .dashboard .app-title {
-  font-size: 1.5rem;
-  font-weight: 700;
+  font-size: 1.8rem;
+  font-weight: 400;
   margin: 0;
 }
 
 .btn-logout {
   background: var(--bg-elevated);
-  border: 1px solid var(--border);
-  color: var(--text-muted);
-  padding: 0.5rem 1rem;
+  border: 2px solid var(--clown-red);
+  color: var(--clown-red);
+  padding: 0.6rem 1.2rem;
   border-radius: var(--radius);
-  font-size: 0.9rem;
-  font-family: inherit;
+  font-size: 0.85rem;
+  font-family: 'Bungee', cursive;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
   cursor: pointer;
-  transition: color 0.2s, border-color 0.2s;
+  transition: all 0.3s;
 }
 
 .btn-logout:hover {
-  color: var(--text);
-  border-color: var(--text-dim);
+  background: var(--clown-red);
+  color: var(--carnival-white);
+  transform: scale(1.05);
+  box-shadow: 0 0 15px rgba(255, 23, 68, 0.5);
 }
 
-/* Phone lookup */
-.phone-lookup-section {
+/* Sections */
+.phone-lookup-section,
+.upload-section,
+.spreadsheet-view-section {
   background: var(--bg-card);
-  border: 1px solid var(--border);
+  border: 2px solid var(--clown-yellow);
   border-radius: var(--radius-lg);
-  padding: 1.5rem;
-  margin-bottom: 1.5rem;
+  padding: 1.75rem;
+  margin-bottom: 2rem;
   box-shadow: var(--shadow);
+  position: relative;
+  overflow: hidden;
 }
 
-.phone-lookup-section h2 {
-  margin: 0 0 0.35rem;
-  font-size: 1.15rem;
-  font-weight: 600;
-  color: var(--text);
+.phone-lookup-section::before,
+.upload-section::before,
+.spreadsheet-view-section::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 12px;
+  background: linear-gradient(90deg, #4a0010, #7a001a, #ff1744, #7a001a, #4a0010);
+  clip-path: polygon(
+    0 0,
+    100% 0,
+    100% 40%,
+    96% 70%,
+    90% 40%,
+    84% 75%,
+    76% 35%,
+    68% 70%,
+    60% 35%,
+    52% 70%,
+    44% 35%,
+    36% 75%,
+    28% 35%,
+    20% 70%,
+    12% 35%,
+    4% 65%,
+    0 45%
+  );
+}
+
+.phone-lookup-section h2,
+.upload-section h2,
+.spreadsheet-view-section h2 {
+  margin: 0 0 1rem;
+  font-size: 1.4rem;
+  font-weight: 400;
+  font-family: 'Bungee', cursive;
+  color: var(--clown-yellow);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  flex-wrap: wrap;
 }
 
 .phone-lookup-desc {
   color: var(--text-muted);
   font-size: 0.9rem;
-  margin: 0 0 1rem;
+  margin: 0 0 1.25rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
 }
 
 .phone-lookup-row {
@@ -215,53 +411,52 @@ body {
 .phone-lookup-row input {
   flex: 1;
   min-width: 200px;
-  padding: 0.6rem 0.75rem;
-  border: 1px solid var(--border);
+  padding: 0.7rem 1rem;
+  border: 2px solid var(--border);
   border-radius: var(--radius);
   background: var(--bg-elevated);
   color: var(--text);
   font-size: 1rem;
-  font-family: inherit;
+  font-family: 'Rubik Mono One', system-ui, sans-serif;
 }
 
 .phone-lookup-row input:focus {
   outline: none;
-  border-color: var(--accent);
+  border-color: var(--clown-yellow);
+  box-shadow: 0 0 0 3px var(--accent-dim), 0 0 15px rgba(255, 215, 0, 0.3);
 }
 
 .phone-lookup-result {
-  margin-top: 0.5rem;
-}
-
-.phone-lookup-msg {
-  color: var(--text-muted);
-  font-size: 0.95rem;
-  margin: 0;
+  margin-top: 1rem;
 }
 
 .phone-lookup-card {
   background: var(--bg-elevated);
-  border: 1px solid var(--border);
+  border: 2px solid var(--clown-purple);
   border-radius: var(--radius);
-  padding: 1rem 1.25rem;
-  margin-bottom: 0.75rem;
+  padding: 1.25rem;
+  margin-bottom: 1rem;
+  transition: all 0.3s;
 }
 
-.phone-lookup-card:last-child {
-  margin-bottom: 0;
+.phone-lookup-card:hover {
+  border-color: var(--clown-yellow);
+  box-shadow: 0 0 20px rgba(255, 215, 0, 0.3);
+  transform: translateX(5px);
 }
 
 .phone-lookup-name {
-  font-weight: 600;
-  font-size: 1rem;
-  color: var(--text);
-  margin-bottom: 0.25rem;
+  font-weight: 700;
+  font-size: 1.1rem;
+  color: var(--clown-yellow);
+  margin-bottom: 0.5rem;
+  font-family: 'Bungee', cursive;
 }
 
 .phone-lookup-address {
-  font-size: 0.9rem;
+  font-size: 0.95rem;
   color: var(--text-muted);
-  margin-bottom: 0.35rem;
+  margin-bottom: 0.5rem;
 }
 
 .phone-lookup-spreadsheet {
@@ -270,176 +465,201 @@ body {
 }
 
 .phone-lookup-spreadsheet a {
-  color: var(--link);
-  margin-left: 0.35rem;
+  color: var(--neon-cyan);
+  margin-left: 0.5rem;
+  text-decoration: none;
+  font-weight: 700;
 }
 
 .phone-lookup-spreadsheet a:hover {
   text-decoration: underline;
+  color: var(--clown-yellow);
 }
 
-/* Sections */
-.upload-section,
-.spreadsheet-view-section {
-  background: var(--bg-card);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-lg);
-  padding: 1.5rem;
-  margin-bottom: 1.5rem;
-  box-shadow: var(--shadow);
-}
-
-.upload-section h2,
-.spreadsheet-view-section h2 {
-  margin: 0 0 1rem;
-  font-size: 1.15rem;
-  font-weight: 600;
-  color: var(--text);
-}
-
+/* File list */
 .upload-section .file-list {
-  margin-top: 1rem;
+  margin-top: 1.25rem;
   font-size: 0.9rem;
   color: var(--text-muted);
 }
 
 .file-list-item {
-  margin: 0.6rem 0;
+  margin: 0.75rem 0;
   display: flex;
   align-items: center;
-  gap: 0.75rem;
+  gap: 1rem;
   flex-wrap: wrap;
+  padding: 0.75rem;
+  background: var(--bg-elevated);
+  border-radius: var(--radius);
+  border-left: 3px solid var(--clown-purple);
 }
 
 .file-list-item .link-view-sheet,
-.file-list-item .link-download-sheet {
-  color: var(--link);
+.file-list-item .link-download-sheet,
+.file-list-item .link-replace-sheet {
+  color: var(--neon-cyan);
   text-decoration: none;
   font-size: 0.9rem;
-  font-weight: 500;
+  font-weight: 700;
+  text-transform: uppercase;
+  transition: color 0.2s;
 }
 
 .file-list-item .link-view-sheet:hover,
 .file-list-item .link-download-sheet:hover,
 .file-list-item .link-replace-sheet:hover {
+  color: var(--clown-yellow);
   text-decoration: underline;
 }
 
-.file-list-item .link-replace-sheet {
-  color: var(--text-muted);
-  text-decoration: none;
-  font-size: 0.9rem;
-}
-
 .file-list-item .link-delete-sheet {
-  color: var(--danger);
+  color: var(--clown-red);
   text-decoration: none;
   font-size: 0.9rem;
+  font-weight: 700;
+  text-transform: uppercase;
 }
 
 .file-list-item .link-delete-sheet:hover {
   color: var(--danger-hover);
-}
-
-/* Upload button */
-#file-input {
-  margin-right: 0.75rem;
-  margin-bottom: 0.5rem;
-}
-
-/* Spreadsheet view */
-.spreadsheet-view-section h2 {
-  display: flex;
-  align-items: center;
-  gap: 0.75rem;
-  flex-wrap: wrap;
-}
-
-.download-promo {
-  margin: 0.75rem 0 1rem;
-  padding: 0.75rem 1rem;
-  background: var(--accent-dim);
-  border-radius: var(--radius);
-  font-size: 0.9rem;
-  color: var(--text-muted);
-}
-
-.download-promo a {
-  color: var(--accent);
-  font-weight: 600;
-  text-decoration: none;
-}
-
-.download-promo a:hover {
   text-decoration: underline;
 }
 
-.sheet-table-wrap {
-  overflow-x: auto;
-  max-height: 70vh;
-  overflow-y: auto;
+/* Buttons */
+.btn-primary {
+  background: linear-gradient(135deg, var(--clown-red), var(--clown-orange));
+  color: var(--carnival-white);
+  border: none;
+  padding: 0.7rem 1.5rem;
   border-radius: var(--radius);
-  border: 1px solid var(--border);
+  font-size: 0.9rem;
+  font-weight: 700;
+  font-family: 'Bungee', cursive;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  cursor: pointer;
+  transition: all 0.3s;
+  box-shadow: 0 4px 15px rgba(255, 23, 68, 0.4);
 }
 
-.sheet-table {
-  width: 100%;
-  border-collapse: collapse;
-  font-size: 0.85rem;
+.btn-primary:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(255, 23, 68, 0.6);
+  filter: brightness(1.1);
 }
 
-.sheet-table th,
-.sheet-table td {
-  border: 1px solid var(--border);
-  padding: 0.5rem 0.75rem;
-  text-align: left;
+.btn-danger {
+  background: linear-gradient(135deg, var(--clown-red), #d32f2f);
+  color: var(--carnival-white);
+  border: none;
+  padding: 0.7rem 1.5rem;
+  border-radius: var(--radius);
+  font-size: 0.9rem;
+  font-weight: 700;
+  font-family: 'Bungee', cursive;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  cursor: pointer;
+  transition: all 0.3s;
+  box-shadow: 0 4px 15px rgba(255, 23, 68, 0.4);
 }
 
-.sheet-table th {
+.btn-danger:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(255, 23, 68, 0.6);
+  filter: brightness(1.1);
+}
+
+.btn-secondary {
   background: var(--bg-elevated);
-  color: var(--text-muted);
-  position: sticky;
-  top: 0;
-  font-weight: 600;
+  color: var(--clown-yellow);
+  border: 2px solid var(--clown-yellow);
+  padding: 0.6rem 1.2rem;
+  border-radius: var(--radius);
+  font-size: 0.85rem;
+  font-weight: 700;
+  font-family: 'Bungee', cursive;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  cursor: pointer;
+  transition: all 0.3s;
+  margin-right: 0.5rem;
+  margin-bottom: 0.5rem;
+  display: inline-block;
+  text-decoration: none;
 }
 
-.sheet-table tr:nth-child(even) {
-  background: rgba(0, 0, 0, 0.2);
+.btn-secondary:hover:not(:disabled) {
+  background: var(--clown-yellow);
+  color: var(--carnival-black);
+  transform: scale(1.05);
+  box-shadow: 0 0 20px rgba(255, 215, 0, 0.5);
+}
+
+button:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+  transform: none !important;
 }
 
 /* Dialer grid */
 .dialer-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(360px, 1fr));
-  gap: 1.5rem;
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  gap: 2rem;
 }
 
 .dialer-box {
   background: var(--bg-card);
-  border: 1px solid var(--border);
+  border: 3px solid var(--clown-purple);
   border-radius: var(--radius-lg);
-  padding: 1.5rem;
+  padding: 1.75rem;
   box-shadow: var(--shadow);
-  transition: border-color 0.2s;
+  transition: all 0.3s;
+  position: relative;
+  overflow: hidden;
+}
+
+.dialer-box::before {
+  content: '🎭';
+  position: absolute;
+  top: -15px;
+  right: -15px;
+  font-size: 80px;
+  opacity: 0.1;
+  transform: rotate(15deg);
 }
 
 .dialer-box:hover {
-  border-color: rgba(255, 255, 255, 0.12);
+  border-color: var(--clown-yellow);
+  box-shadow: var(--shadow-lg), 0 0 30px rgba(255, 215, 0, 0.3);
+  transform: translateY(-3px);
 }
 
 .dialer-box h2 {
-  margin: 0 0 1rem;
-  font-size: 1.2rem;
-  font-weight: 600;
-  color: var(--text);
+  margin: 0 0 1.25rem;
+  font-size: 1.5rem;
+  font-weight: 400;
+  font-family: 'Bungee Shade', cursive;
+  color: var(--clown-yellow);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  background: linear-gradient(135deg, var(--clown-yellow), var(--clown-orange));
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
 }
 
 .dialer-box label {
   display: block;
-  margin-bottom: 0.35rem;
+  margin-bottom: 0.5rem;
   font-size: 0.85rem;
-  font-weight: 500;
-  color: var(--text-muted);
+  font-weight: 700;
+  color: var(--clown-yellow);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  font-family: 'Bungee', cursive;
 }
 
 .dialer-box select,
@@ -448,27 +668,29 @@ body {
 .dialer-box input[type="time"],
 .dialer-box textarea {
   width: 100%;
-  padding: 0.6rem 0.75rem;
-  border: 1px solid var(--border);
+  padding: 0.7rem 0.9rem;
+  border: 2px solid var(--border);
   border-radius: var(--radius);
   background: var(--bg-elevated);
   color: var(--text);
   font-size: 0.9rem;
-  font-family: inherit;
-  margin-bottom: 0.75rem;
-  transition: border-color 0.2s;
+  font-family: 'Rubik Mono One', system-ui, sans-serif;
+  margin-bottom: 0.9rem;
+  transition: all 0.3s;
 }
 
 .dialer-box select:focus,
 .dialer-box input:focus,
 .dialer-box textarea:focus {
   outline: none;
-  border-color: var(--accent);
+  border-color: var(--clown-yellow);
+  box-shadow: 0 0 0 3px var(--accent-dim), 0 0 15px rgba(255, 215, 0, 0.3);
+  background: rgba(255, 215, 0, 0.05);
 }
 
 .dialer-box input[type="time"] {
   width: auto;
-  min-width: 120px;
+  min-width: 130px;
 }
 
 .dialer-box .row {
@@ -476,11 +698,58 @@ body {
   gap: 0.75rem;
   align-items: center;
   flex-wrap: wrap;
-  margin-bottom: 0.75rem;
+  margin-bottom: 0.9rem;
 }
 
 .dialer-box .row.run-window span {
-  color: var(--text-muted);
+  color: var(--clown-yellow);
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.dialer-box .row.days-of-week {
+  gap: 0.5rem;
+  padding: 0.75rem;
+  background: var(--bg-elevated);
+  border-radius: var(--radius);
+  border: 2px dashed var(--clown-purple);
+}
+
+.dialer-box .row.days-of-week label {
+  margin-bottom: 0;
+  font-size: 0.75rem;
+  padding: 0.4rem 0.6rem;
+  background: var(--bg-card);
+  border: 1px solid var(--clown-purple);
+  border-radius: var(--radius);
+  cursor: pointer;
+  transition: all 0.2s;
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.dialer-box .row.days-of-week label:hover {
+  border-color: var(--clown-yellow);
+  background: rgba(255, 215, 0, 0.1);
+}
+
+.dialer-box .row.days-of-week input[type="checkbox"] {
+  width: auto;
+  margin: 0;
+  cursor: pointer;
+}
+
+.dialer-box .row.days-of-week label.day-checked,
+.dialer-box .row.days-of-week label:has(input[type="checkbox"]:checked) {
+  background: var(--clown-yellow);
+  color: var(--carnival-black);
+  border-color: var(--clown-yellow);
+  font-weight: 700;
+}
+
+.dialer-box .row.days-of-week input[type="checkbox"]:checked {
+  accent-color: var(--carnival-black);
 }
 
 .dialer-box .row label {
@@ -489,13 +758,14 @@ body {
 
 .dialer-box .row select {
   width: auto;
-  min-width: 60px;
+  min-width: 70px;
   margin-bottom: 0;
 }
 
 .dialer-box textarea {
-  min-height: 70px;
+  min-height: 80px;
   resize: vertical;
+  font-family: 'Rubik Mono One', system-ui, sans-serif;
 }
 
 .check-all-row {
@@ -503,173 +773,318 @@ body {
   align-items: center;
   gap: 0.5rem;
   cursor: pointer;
-  margin-bottom: 0.5rem;
+  margin-bottom: 0.75rem;
+  padding: 0.5rem;
+  background: var(--bg-elevated);
+  border-radius: var(--radius);
+  border-left: 3px solid var(--clown-purple);
 }
 
 .check-all-row input {
   width: auto;
   margin: 0;
-}
-
-/* Buttons */
-.dialer-box button,
-.upload-section button,
-.spreadsheet-view-section button {
-  padding: 0.55rem 1rem;
-  border-radius: var(--radius);
-  border: none;
-  font-size: 0.9rem;
-  font-weight: 500;
-  font-family: inherit;
   cursor: pointer;
-  margin-right: 0.5rem;
-  margin-bottom: 0.5rem;
-  transition: filter 0.2s, transform 0.1s;
-}
-
-.dialer-box button:active,
-.upload-section button:active {
-  transform: scale(0.98);
-}
-
-.btn-primary {
-  background: var(--accent);
-  color: #0c0f14;
-}
-
-.btn-primary:hover:not(:disabled) {
-  filter: brightness(1.1);
-}
-
-.btn-danger {
-  background: var(--danger);
-  color: #fff;
-}
-
-.btn-danger:hover:not(:disabled) {
-  filter: brightness(1.1);
-}
-
-.btn-secondary {
-  background: var(--bg-elevated);
-  color: var(--text);
-  border: 1px solid var(--border);
-}
-
-.btn-secondary:hover:not(:disabled) {
-  border-color: var(--text-dim);
-  color: var(--text);
-}
-
-button:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
 }
 
 /* Status & next-up */
 .dialer-box .status {
   display: inline-block;
-  font-size: 0.8rem;
-  font-weight: 600;
-  padding: 0.25rem 0.65rem;
+  font-size: 0.75rem;
+  font-weight: 700;
+  padding: 0.4rem 0.9rem;
   border-radius: 999px;
-  margin-top: 0.5rem;
+  margin-top: 0.75rem;
   text-transform: uppercase;
-  letter-spacing: 0.03em;
+  letter-spacing: 0.1em;
+  font-family: 'Bungee', cursive;
+  border: 2px solid;
 }
 
 .dialer-box .status.running {
   background: var(--success-dim);
   color: var(--success);
+  border-color: var(--success);
+  box-shadow: 0 0 15px rgba(0, 230, 118, 0.6);
+  animation: pulse-glow 2s infinite;
+}
+
+@keyframes pulse-glow {
+  0%, 100% { box-shadow: 0 0 15px rgba(0, 230, 118, 0.4); }
+  50% { box-shadow: 0 0 25px rgba(0, 230, 118, 0.7); }
 }
 
 .dialer-box .status.paused {
   background: var(--accent-dim);
   color: var(--warn);
+  border-color: var(--warn);
 }
 
 .dialer-box .status:not(.running):not(.paused) {
-  background: rgba(255, 255, 255, 0.06);
+  background: rgba(255, 255, 255, 0.1);
   color: var(--text-muted);
+  border-color: var(--text-dim);
 }
 
 .dialer-box .next-up {
-  font-size: 0.85rem;
-  color: var(--text-muted);
-  margin: 0.5rem 0 0.75rem;
+  font-size: 0.9rem;
+  color: var(--clown-yellow);
+  margin: 0.75rem 0 1rem;
   font-style: italic;
+  font-weight: 700;
 }
 
 /* Phone multi */
 .phone-multi {
-  max-height: 120px;
+  max-height: 140px;
   overflow-y: auto;
-  padding: 0.5rem 0;
+  padding: 0.75rem;
+  background: var(--bg-elevated);
+  border-radius: var(--radius);
+  border: 2px dashed var(--clown-purple);
 }
 
 .phone-multi label {
   display: flex;
   align-items: center;
-  gap: 0.5rem;
-  margin-bottom: 0.4rem;
+  gap: 0.6rem;
+  margin-bottom: 0.5rem;
   cursor: pointer;
+  padding: 0.3rem;
+  border-radius: var(--radius);
+  transition: background 0.2s;
+}
+
+.phone-multi label:hover {
+  background: rgba(255, 215, 0, 0.1);
 }
 
 .phone-multi input {
   width: auto;
   margin: 0;
+  cursor: pointer;
 }
 
 /* Stats box */
 .stats-box {
   background: var(--bg-elevated);
-  border: 1px solid var(--border);
+  border: 2px solid var(--clown-green);
   border-radius: var(--radius);
-  padding: 1rem 1.25rem;
-  margin: 1rem 0;
+  padding: 1.25rem;
+  margin: 1.25rem 0;
+  position: relative;
+}
+
+.stats-box::before {
+  content: '📊';
+  position: absolute;
+  top: -15px;
+  left: 15px;
+  font-size: 30px;
+  background: var(--bg-card);
+  padding: 0 5px;
 }
 
 .stats-title {
-  margin: 0 0 0.5rem;
-  font-size: 0.9rem;
-  font-weight: 600;
-  color: var(--text-muted);
+  margin: 0 0 0.75rem;
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: var(--clown-green);
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  font-family: 'Bungee', cursive;
 }
 
 .stats-row {
   display: flex;
   justify-content: space-between;
   font-size: 0.9rem;
-  padding: 0.35rem 0;
+  padding: 0.5rem 0;
+  border-bottom: 1px dashed var(--border);
+}
+
+.stats-row:last-child {
+  border-bottom: none;
 }
 
 .stats-row strong {
-  color: var(--text);
+  color: var(--clown-yellow);
+  font-family: 'Bungee', cursive;
+  font-size: 1.1rem;
 }
 
 .dialer-hr {
   border: none;
-  border-top: 1px solid var(--border);
-  margin: 1.5rem 0 1rem;
+  border-top: 2px dashed var(--clown-purple);
+  margin: 1.75rem 0 1.25rem;
 }
 
 .test-call-title {
-  margin: 0 0 0.75rem;
-  font-size: 1rem;
-  font-weight: 600;
-  color: var(--text-muted);
+  margin: 0 0 1rem;
+  font-size: 1.1rem;
+  font-weight: 400;
+  color: var(--clown-pink);
+  font-family: 'Bungee', cursive;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
 }
 
 .test-call-status {
   font-size: 0.9rem;
-  margin-top: 0.5rem;
-  min-height: 1.2em;
+  margin-top: 0.75rem;
+  min-height: 1.3em;
+  font-weight: 700;
 }
 
 .test-call-status.error {
-  color: var(--danger);
+  color: var(--clown-red);
 }
 
 .test-call-status:empty {
   display: none;
+}
+
+/* Spreadsheet table */
+.sheet-table-wrap {
+  overflow-x: auto;
+  max-height: 70vh;
+  overflow-y: auto;
+  border-radius: var(--radius);
+  border: 2px solid var(--clown-yellow);
+  background: var(--bg-elevated);
+}
+
+.sheet-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.85rem;
+  font-family: 'Rubik Mono One', monospace;
+}
+
+.sheet-table th,
+.sheet-table td {
+  border: 1px solid var(--border);
+  padding: 0.6rem 0.9rem;
+  text-align: left;
+}
+
+.sheet-table th {
+  background: linear-gradient(135deg, var(--clown-purple), var(--clown-pink));
+  color: var(--carnival-white);
+  position: sticky;
+  top: 0;
+  font-weight: 700;
+  text-transform: uppercase;
+  font-family: 'Bungee', cursive;
+  font-size: 0.75rem;
+  letter-spacing: 0.05em;
+  z-index: 10;
+}
+
+.sheet-table tr:nth-child(even) {
+  background: rgba(255, 215, 0, 0.05);
+}
+
+.sheet-table tr:hover {
+  background: rgba(255, 0, 76, 0.2);
+}
+
+.download-promo {
+  margin: 1rem 0 1.25rem;
+  padding: 1rem 1.25rem;
+  background: linear-gradient(135deg, rgba(255, 215, 0, 0.2), rgba(255, 111, 0, 0.2));
+  border-radius: var(--radius);
+  border: 2px dashed var(--clown-yellow);
+  font-size: 0.9rem;
+  color: var(--text-muted);
+}
+
+.download-promo a {
+  color: var(--clown-yellow);
+  font-weight: 700;
+  text-decoration: none;
+  font-family: 'Bungee', cursive;
+  text-transform: uppercase;
+}
+
+.download-promo a:hover {
+  text-decoration: underline;
+  color: var(--clown-orange);
+}
+
+/* Blacklist & Booked section */
+.blacklist-booked-section {
+  margin-top: 1.5rem;
+  padding-top: 1.5rem;
+  border-top: 2px dashed var(--clown-purple);
+}
+
+.blacklist-booked-section h3 {
+  margin: 0 0 1rem;
+  font-size: 1.1rem;
+  font-weight: 400;
+  font-family: 'Bungee', cursive;
+  color: var(--clown-purple);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.blacklist-booked-section p {
+  margin: 0.75rem 0;
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.blacklist-booked-section span {
+  font-size: 0.85rem;
+  font-weight: 700;
+  font-family: 'Bungee', cursive;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .dashboard {
+    padding: 1rem;
+  }
+
+  body {
+    font-size: 16px;
+    line-height: 1.7;
+  }
+  
+  .dialer-grid {
+    grid-template-columns: 1fr;
+  }
+  
+  .app-title {
+    font-size: 1.4rem;
+  }
+  
+  .dashboard .app-title {
+    font-size: 1.3rem;
+  }
+
+  .phone-lookup-section,
+  .upload-section,
+  .spreadsheet-view-section,
+  .dialer-box {
+    padding: 1.25rem;
+  }
+
+  .btn-primary,
+  .btn-secondary,
+  .btn-danger {
+    font-size: 0.95rem;
+    padding: 0.8rem 1.3rem;
+  }
+
+  .dialer-box select,
+  .dialer-box input[type="number"],
+  .dialer-box input[type="text"],
+  .dialer-box input[type="time"],
+  .dialer-box textarea,
+  .phone-lookup-row input {
+    font-size: 1rem;
+  }
 }
