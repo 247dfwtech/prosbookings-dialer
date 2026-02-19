@@ -21,10 +21,14 @@ router.put('/config', (req, res) => {
   if (!dialerId || !['dialer1', 'dialer2', 'dialer3'].includes(dialerId)) {
     return res.status(400).json({ error: 'Invalid dialerId' });
   }
+  console.log('[config] PUT', dialerId, 'targetZip:', body.targetZip !== undefined ? JSON.stringify(body.targetZip) : '(not in body)');
   const config = updateConfig((c) => {
     const d = c.dialers[dialerId] || {};
     c.dialers[dialerId] = { ...d, ...body };
     delete c.dialers[dialerId].dialerId;
+    if (body.targetZip !== undefined) {
+      c.dialers[dialerId].targetZip = String(body.targetZip || '').trim();
+    }
     return c;
   });
   res.json(config);
@@ -50,9 +54,11 @@ router.get('/next-up', (req, res) => {
       continue;
     }
     try {
-      const next = getNextNotCalledRow(meta.path);
+      const targetZip = dialerConfig.targetZip ? String(dialerConfig.targetZip).trim() : '';
+      const next = getNextNotCalledRow(meta.path, targetZip);
+      console.log('[next-up]', id, { targetZip: targetZip || '(empty)', found: !!next, rowIndex: next?.rowIndex, rowZip: next?.row?.zip });
       if (!next) {
-        nextUp[id] = { done: true };
+        nextUp[id] = targetZip ? { done: true, noContactsInTargetZip: true } : { done: true };
         continue;
       }
       nextUp[id] = {
@@ -62,6 +68,7 @@ router.get('/next-up', (req, res) => {
         rowIndex: next.rowIndex,
       };
     } catch (e) {
+      console.error('[next-up]', id, e);
       nextUp[id] = null;
     }
   }
@@ -136,6 +143,18 @@ router.post('/resume/:dialerId', (req, res) => {
     return s;
   });
   res.json({ ok: true, paused: false });
+});
+
+const DIALER_IDS = ['dialer1', 'dialer2', 'dialer3'];
+
+router.post('/pause-all', (req, res) => {
+  updateState((s) => {
+    DIALER_IDS.forEach((id) => {
+      if (s.dialers[id]) s.dialers[id].paused = true;
+    });
+    return s;
+  });
+  res.json({ ok: true, message: 'All dialers paused.' });
 });
 
 router.post('/test-call', async (req, res) => {

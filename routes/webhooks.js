@@ -11,12 +11,24 @@ const { listUploads } = require('../lib/upload-store');
 const scheduler = require('../lib/scheduler');
 const { sendBookingConfirmation } = require('../lib/email');
 const { createEvent } = require('../lib/calendar');
-const { updateState } = require('../lib/store');
+const { getState, updateState } = require('../lib/store');
 const { recordCallEnded, recordBooking } = require('../lib/stats');
 const { addToBlacklist } = require('../lib/blacklist');
 const { addBooking } = require('../lib/booked');
+const { getConfig } = require('../lib/store');
 
 const TEST_PHONE_LAST10 = new Set(['2146002023', '8178086172', '9156379939']);
+
+// Ended reasons that mean "customer didn't answer / went to voicemail / busy" — trigger double-tap retry (second attempt).
+// Normalize to lowercase-with-hyphens so "Customer Did Not Answer" and "customer-did-not-answer" both match.
+const RETRY_ENDED_REASONS = new Set([
+  'customer-did-not-answer',
+  'voicemail',
+  'customer-busy',
+]);
+function normalizeEndedReason(r) {
+  return String(r || '').toLowerCase().trim().replace(/\s+/g, '-');
+}
 
 // VAPI ended reasons that indicate a bad/unreachable number or connectivity failure — we blacklist the number.
 // See https://docs.vapi.ai/calls/call-ended-reason
@@ -68,18 +80,34 @@ function applyCallEnded(message) {
   // Put each speaker turn on its own line in the spreadsheet
   transcript = transcript.replace(/\s+AI:\s+/g, '\nAI: ').replace(/\s+User:\s+/g, '\nUser: ').trim();
 
-  if (!externalId) return;
+  console.log('[webhook/vapi] applyCallEnded:', { externalId, endedReason, successEvaluation, transcriptLen: transcript.length, hasAudioUrl: !!audioUrl });
+
+  if (!externalId) {
+    console.log('[webhook/vapi] No externalId — skipping');
+    return;
+  }
   const parsed = parseExternalId(externalId);
-  if (!parsed) return;
+  if (!parsed) {
+    console.log('[webhook/vapi] Could not parse externalId:', externalId);
+    return;
+  }
 
   const { dialerId, uploadId, rowIndex } = parsed;
   const customerNumber = normalizePhoneForCompare(customer.number || message.customer?.number);
   const isTestNumber = customerNumber && TEST_PHONE_LAST10.has(customerNumber);
+  console.log('[webhook/vapi] Parsed:', { dialerId, uploadId, rowIndex, customerNumber, isTestNumber });
+
   if (dialerId !== 'test' && !isTestNumber) {
     recordCallEnded(dialerId, endedReason);
+    console.log('[webhook/vapi] recordCallEnded:', dialerId, endedReason);
   }
   if (!isNaN(rowIndex)) {
     const meta = getUploadMeta(uploadId);
+    const config = getConfig();
+    const dialerConfig = config.dialers?.[dialerId];
+    const doubleTapOn = !!dialerConfig?.doubleTap;
+    const isRetryEnding = !!getState().retryScheduledFor?.[externalId];
+
     if (meta?.path) {
       try {
         updateRow(meta.path, rowIndex, {
@@ -88,11 +116,14 @@ function applyCallEnded(message) {
           successEvaluation,
           transcript,
         });
+        console.log('[webhook/vapi] updateRow OK:', uploadId, 'row', rowIndex, { endedReason, successEvaluation });
       } catch (e) {
-        console.error('Webhook vapi updateRow:', e);
+        console.error('[webhook/vapi] updateRow error:', e);
       }
+    } else {
+      console.log('[webhook/vapi] No upload meta for uploadId:', uploadId);
     }
-    
+
     // If appointment was booked (successEvaluation === 'True'), add to booked.xlsx
     if (successEvaluation && String(successEvaluation).trim().toLowerCase() === 'true') {
       const { readSheet, findHeaders, normalizeRow } = require('../lib/spreadsheet');
@@ -108,18 +139,41 @@ function applyCallEnded(message) {
           transcript: transcript || '',
           audioUrl: audioUrl || '',
         });
+        console.log('[webhook/vapi] addBooking OK for row', rowIndex);
       } catch (e) {
-        console.error('[webhook] Error adding to booked.xlsx:', e.message);
+        console.error('[webhook/vapi] addBooking error:', e.message);
       }
     }
-    
+
     if (customerNumber && BAD_NUMBER_ENDED_REASONS.has(endedReason)) {
       if (addToBlacklist(customerNumber)) {
-        console.log('[webhook] Added to blacklist (bad number):', customerNumber, endedReason);
+        console.log('[webhook/vapi] Added to blacklist (bad number):', customerNumber, endedReason);
       }
     }
-    if (endedReason === 'customer-did-not-answer') {
-      scheduler.scheduleDoubleTapRetry(externalId);
+
+    // Double-tap retry: schedule second attempt 30s later when customer didn't answer / voicemail / busy
+    const normalizedReason = normalizeEndedReason(endedReason);
+    if (RETRY_ENDED_REASONS.has(normalizedReason) && doubleTapOn && meta?.path) {
+      if (isRetryEnding) {
+        updateState((s) => {
+          if (s.retryScheduledFor) delete s.retryScheduledFor[externalId];
+          return s;
+        });
+        console.log('[webhook/vapi] Retry call ended, not scheduling again:', externalId);
+      } else {
+        scheduler.scheduleDoubleTapRetry(externalId);
+        updateState((s) => {
+          s.retryScheduledFor = s.retryScheduledFor || {};
+          s.retryScheduledFor[externalId] = true;
+          return s;
+        });
+        try {
+          updateRow(meta.path, rowIndex, { status: 'not-called', endedReason: '', successEvaluation: '', transcript: '' });
+          console.log('[webhook/vapi] Scheduled double-tap retry and reverted row to not-called:', externalId, 'reason:', endedReason);
+        } catch (e) {
+          console.error('[webhook/vapi] updateRow revert error:', e);
+        }
+      }
     }
   }
   updateState((s) => {
@@ -127,18 +181,31 @@ function applyCallEnded(message) {
     if (s.pendingCallStartedAt) delete s.pendingCallStartedAt[externalId];
     return s;
   });
+  console.log('[webhook/vapi] applyCallEnded done');
 }
 
 router.post('/vapi', (req, res) => {
   const { message } = req.body || {};
+  console.log('[webhook/vapi] Received POST', {
+    hasMessage: !!message,
+    type: message?.type,
+    endedReason: message?.endedReason || message?.call?.endedReason,
+    externalId: message?.customer?.externalId || message?.externalId,
+    customerNumber: message?.customer?.number,
+    successEvaluation: message?.analysis?.successEvaluation ?? message?.successEvaluation,
+  });
   if (!message) {
     return res.status(400).json({ error: 'Missing message' });
   }
 
   if (message.type === 'end-of-call-report') {
+    console.log('[webhook/vapi] Applying end-of-call-report');
     applyCallEnded(message);
   } else if (message.endedReason || message.call?.endedReason) {
+    console.log('[webhook/vapi] Applying call-ended (endedReason present)');
     applyCallEnded(message);
+  } else {
+    console.log('[webhook/vapi] No end-of-call payload; skipping applyCallEnded');
   }
 
   res.status(200).json({ received: true });

@@ -51,6 +51,20 @@ Generate password hash: `node scripts/hash-password.js`.
   - **Option B (local / VPS):** `GOOGLE_CALENDAR_CREDENTIALS_PATH` – path to the JSON key file.
   - `GOOGLE_CALENDAR_ID` – optional; defaults to `primary` if unset.
 
+## Publishing updates (local → published app)
+
+To push your local changes to the live app on Railway:
+
+1. **Commit and push to GitHub** (Railway deploys from your repo):
+   ```bash
+   cd /path/to/dialer
+   git add -A
+   git commit -m "Describe your updates"
+   git push origin main
+   ```
+2. Railway will **auto-deploy** when it sees the new commit. Check the **Deployments** tab on Railway; when the new deployment is active, your published app is updated.
+3. If you use a **volume** and `PERSISTENT_DATA_PATH`, your config and uploads are kept; only the app code changes.
+
 ## Deploying on Railway (step-by-step)
 
 On Railway, the app’s disk is **temporary**: every time you deploy or the app restarts, anything saved (dialer settings, uploaded spreadsheets, voicemail messages) is wiped. So test calls and the dialer can “do nothing” because config and uploads are gone. Fix this by adding a **volume** with mount path `/app/uploads` and setting **Variables** → **`PERSISTENT_DATA_PATH`** = **`/app/uploads`** so the app stores all data (uploads, config, voicemail) on that volume.

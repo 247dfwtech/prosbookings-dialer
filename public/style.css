@@ -679,6 +679,12 @@ button:disabled {
   transition: all 0.3s;
 }
 
+/* Voicemail message textarea: normal case so {{firstName}} etc. are readable and substitution works */
+.dialer-box textarea.dialer-voicemail-msg {
+  text-transform: none;
+  font-family: system-ui, sans-serif;
+}
+
 .dialer-box select:focus,
 .dialer-box input:focus,
 .dialer-box textarea:focus {

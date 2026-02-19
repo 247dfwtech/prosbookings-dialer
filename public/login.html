@@ -12,30 +12,25 @@
   <div class="login-box">
     <h1 class="app-title">Adrian's COLD Calling Beast</h1>
     <p class="login-subtitle">Sign in to run your list</p>
-    <form id="login-form">
+    <form method="post" action="/api/auth/login" id="login-form">
       <label for="password">Password</label>
-      <input type="password" id="password" name="password" required placeholder="Password">
+      <input type="password" id="password" name="password" required placeholder="Password" autocomplete="current-password">
       <button type="submit">Log in</button>
     </form>
     <p id="login-error" class="error" hidden></p>
   </div>
   <script>
-    document.getElementById('login-form').addEventListener('submit', async (e) => {
-      e.preventDefault();
-      const password = e.target.password.value;
-      const errEl = document.getElementById('login-error');
-      errEl.hidden = true;
-      try {
-        const res = await fetch('/api/auth/login', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ password }),
-        });
-        const data = await res.json().catch(() => ({}));
-        if (res.ok) window.location.href = '/dashboard';
-        else { errEl.textContent = data.error || 'Invalid password'; errEl.hidden = false; }
-      } catch { errEl.textContent = 'Network error'; errEl.hidden = false; }
-    });
+    (function() {
+      var params = new URLSearchParams(window.location.search);
+      var el = document.getElementById('login-error');
+      if (params.get('error') === 'invalid') {
+        el.textContent = 'Invalid password';
+        el.hidden = false;
+      } else if (params.get('error') === 'too_many') {
+        el.textContent = 'Too many attempts. Try again in 15 minutes.';
+        el.hidden = false;
+      }
+    })();
   </script>
 </body>
 </html>

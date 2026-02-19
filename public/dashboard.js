@@ -356,7 +356,8 @@
         const nextUpEl = document.getElementById('next-up-' + dialerId);
         if (nextUpEl) {
           const n = nextUp[dialerId];
-          if (n?.done) nextUpEl.textContent = 'Next: All done for this list.';
+          if (n?.noContactsInTargetZip) nextUpEl.textContent = 'No more contacts in target zip.';
+          else if (n?.done) nextUpEl.textContent = 'Next: All done for this list.';
           else if (n?.firstName != null || n?.phone) nextUpEl.textContent = `Next: ${[n.firstName, n.lastName].filter(Boolean).join(' ')} (row ${n.rowIndex})`;
           else nextUpEl.textContent = '';
         }
@@ -511,9 +512,11 @@
     document.querySelectorAll('.btn-start').forEach((btn) => {
       btn.addEventListener('click', async () => {
         const id = btn.dataset.dialer;
+        await saveDialerConfig(id);
         await api(`/api/dialer/start/${id}`, { method: 'POST' });
         await loadState();
         refreshDialers();
+        updateStatsOnly();
       });
     });
     document.querySelectorAll('.btn-pause').forEach((btn) => {
@@ -639,6 +642,28 @@
       phoneLookupResult.innerHTML = `<p class="phone-lookup-msg error">${escapeHtml(e.message || 'Search failed')}</p>`;
     }
   }
+
+  document.getElementById('btn-pause-all').addEventListener('click', async () => {
+    const btn = document.getElementById('btn-pause-all');
+    const prevText = btn.textContent;
+    btn.disabled = true;
+    btn.textContent = 'Pausing…';
+    try {
+      const data = await api('/api/dialer/pause-all', { method: 'POST' });
+      if (data.ok) {
+        await loadState();
+        refreshDialers();
+        alert(data.message || 'All dialers paused.');
+      } else {
+        alert(data.error || 'Failed to pause');
+      }
+    } catch (e) {
+      alert(e.message || 'Failed to pause all');
+    } finally {
+      btn.disabled = false;
+      btn.textContent = prevText;
+    }
+  });
 
   document.getElementById('btn-upload').addEventListener('click', async () => {
     const input = document.getElementById('file-input');

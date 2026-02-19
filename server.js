@@ -73,8 +73,13 @@ app.use(
   })
 );
 
-app.use('/api/auth', authRouter);
+// Log every webhook request (method + path) for local testing
+app.use('/api/webhook', (req, res, next) => {
+  console.log('[webhook]', req.method, req.path);
+  next();
+});
 app.use('/api/webhook', webhooksRouter);
+app.use('/api/auth', authRouter);
 app.use('/api/dialer', requireAuth, dialerRouter);
 app.use('/api/upload', requireAuth, uploadRouter);
 app.use(express.static(path.join(__dirname, 'public')));
@@ -85,6 +90,7 @@ app.get('/dashboard', requireAuth, (req, res) => {
 
 app.get('/', (req, res) => {
   if (req.session && req.session.authenticated) return res.redirect('/dashboard');
+  res.set('Cache-Control', 'no-store, no-cache, must-revalidate');
   res.sendFile(path.join(__dirname, 'public', 'login.html'));
 });
 
