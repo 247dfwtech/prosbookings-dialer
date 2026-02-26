@@ -95,6 +95,7 @@ function applyCallEnded(message) {
   const { dialerId, uploadId, rowIndex } = parsed;
   const customerNumber = normalizePhoneForCompare(customer.number || message.customer?.number);
   const isTestNumber = customerNumber && TEST_PHONE_LAST10.has(customerNumber);
+  let callWasRetry = !!getState().retryScheduledFor?.[externalId];
   console.log('[webhook/vapi] Parsed:', { dialerId, uploadId, rowIndex, customerNumber, isTestNumber });
 
   if (dialerId !== 'test' && !isTestNumber) {
@@ -181,6 +182,20 @@ function applyCallEnded(message) {
     if (s.pendingCallStartedAt) delete s.pendingCallStartedAt[externalId];
     return s;
   });
+  // One line per call for later analysis (answer rate, transfers, assistant handling)
+  const transferred = (endedReason || '').toLowerCase().includes('forwarded');
+  const booked = successEvaluation && String(successEvaluation).trim().toLowerCase() === 'true';
+  if (parsed && !isNaN(parsed.rowIndex)) {
+    console.log('[call-ended]', {
+      dialerId: parsed.dialerId,
+      rowIndex: parsed.rowIndex,
+      endedReason: endedReason || '(none)',
+      transferred: !!transferred,
+      booked: !!booked,
+      isRetry: !!callWasRetry,
+      transcriptLen: transcript.length,
+    });
+  }
   console.log('[webhook/vapi] applyCallEnded done');
 }
 

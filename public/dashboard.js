@@ -279,6 +279,11 @@
         <label>Call every (seconds)</label>
         <input type="number" class="dialer-call-every" data-dialer="${dialerId}" value="${d.callEverySeconds ?? 30}" min="1">
 
+        <label>Max simultaneous calls</label>
+        <select class="dialer-max-concurrent" data-dialer="${dialerId}">
+          ${[1,2,3,4,5,6,7,8,9,10].map((n) => `<option value="${n}" ${(d.maxConcurrentCalls ?? 1) === n ? 'selected' : ''}>${n}</option>`).join('')}
+        </select>
+
         <label>Double tap (retry if no answer)</label>
         <select class="dialer-double-tap" data-dialer="${dialerId}">
           <option value="false" ${!d.doubleTap ? 'selected' : ''}>No</option>
@@ -394,6 +399,7 @@
     const spreadsheet = root.querySelector('.dialer-spreadsheet');
     const assistant = root.querySelector('.dialer-assistant');
     const callEvery = root.querySelector('.dialer-call-every');
+    const maxConcurrent = root.querySelector('.dialer-max-concurrent');
     const doubleTap = root.querySelector('.dialer-double-tap');
     const vmN = root.querySelector('.dialer-voicemail-n');
     const vmM = root.querySelector('.dialer-voicemail-m');
@@ -409,6 +415,7 @@
       spreadsheetId: spreadsheet?.value || '',
       assistantId: assistant?.value || '',
       callEverySeconds: parseInt(callEvery?.value, 10) || 30,
+      maxConcurrentCalls: parseInt(maxConcurrent?.value, 10) || 1,
       doubleTap: doubleTap?.value === 'true',
       voicemailN: parseInt(vmN?.value, 10) ?? 0,
       voicemailM: parseInt(vmM?.value, 10) ?? 1,
@@ -458,6 +465,9 @@
     });
     document.querySelectorAll('.dialer-call-every').forEach((inp) => {
       inp.addEventListener('change', () => saveDialerConfig(inp.dataset.dialer));
+    });
+    document.querySelectorAll('.dialer-max-concurrent').forEach((sel) => {
+      sel.addEventListener('change', () => saveDialerConfig(sel.dataset.dialer));
     });
     document.querySelectorAll('.dialer-double-tap').forEach((sel) => {
       sel.addEventListener('change', () => saveDialerConfig(sel.dataset.dialer));
