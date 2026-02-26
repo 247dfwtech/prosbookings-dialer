@@ -1,0 +1,75 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:padding="24dp"
+    android:fillViewport="true">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical">
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Inbound call lookup"
+            android:textSize="22sp"
+            android:textStyle="bold"
+            android:marginBottom="8dp" />
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="When an incoming call is received, the app looks up the number in your published app\u2019s contact spreadsheets and shows the contact info."
+            android:textSize="14sp"
+            android:marginBottom="24dp" />
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Published app URL"
+            android:textSize="14sp"
+            android:textStyle="bold"
+            android:marginBottom="4dp" />
+        <EditText
+            android:id="@+id/settings_base_url"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:hint="https://your-app.up.railway.app"
+            android:inputType="textUri"
+            android:maxLines="1"
+            android:padding="12dp"
+            android:marginBottom="16dp" />
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="API key (optional)"
+            android:textSize="14sp"
+            android:textStyle="bold"
+            android:marginBottom="4dp" />
+        <EditText
+            android:id="@+id/settings_api_key"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:hint="Set INBOUND_LOOKUP_API_KEY on server if you use one"
+            android:inputType="textPassword"
+            android:maxLines="1"
+            android:padding="12dp"
+            android:marginBottom="24dp" />
+
+        <Button
+            android:id="@+id/settings_save"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Save" />
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Note: On Android 10+, the incoming number may be restricted. Grant phone/call log permissions and, if needed, set this app as your call screening app in Settings."
+            android:textSize="12sp"
+            android:marginTop="24dp"
+            android:alpha="0.8" />
+    </LinearLayout>
+</ScrollView>

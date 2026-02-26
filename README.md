@@ -42,6 +42,7 @@ Generate password hash: `node scripts/hash-password.js`.
 - `SITE_PASSWORD_HASH` – bcrypt hash of dashboard password (required).
 - `VAPI_API_KEY` – VAPI API key (required for calls).
 - `SESSION_SECRET` – Optional. Secret for signing session cookies; if unset, a default is used. For production you can set this to a long random string (e.g. `openssl rand -hex 32`) in Railway Variables.
+- `INBOUND_LOOKUP_API_KEY` – Optional. If set, the Android “Inbound Lookup” app must send this value (as `X-API-Key` header or `apiKey` in body) when calling `/api/webhook/inbound-lookup`. Use a long random string (e.g. `openssl rand -hex 24`).
 - **Email (booking confirmations):** Use either:
   - **Microsoft / Outlook / Office 365 (SMTP):** `SMTP_HOST`, `SMTP_PORT` (default 587), `SMTP_USER`, `SMTP_PASS`, `FROM_EMAIL`. For Outlook.com use `smtp-mail.outlook.com`; for Office 365 use `smtp.office365.com`. Turn on 2FA and create an **App password** at account.microsoft.com (Security) and use that as `SMTP_PASS`.
   - **Resend:** `RESEND_API_KEY` and `FROM_EMAIL` (optional).
@@ -50,6 +51,15 @@ Generate password hash: `node scripts/hash-password.js`.
   - **Option A (Railway / no file):** `GOOGLE_CALENDAR_CREDENTIALS_JSON` – full JSON string of your Google service account key (paste the contents of the key file).
   - **Option B (local / VPS):** `GOOGLE_CALENDAR_CREDENTIALS_PATH` – path to the JSON key file.
   - `GOOGLE_CALENDAR_ID` – optional; defaults to `primary` if unset.
+
+## Our Android app (inbound call lookup)
+
+We refer to this as **our Android app**. It lives in `android-app/` lets you install an APK on your phone so that when an **incoming call** is received, the app looks up the caller’s number in your **published app’s** contact spreadsheets (same as the dashboard “Phone number lookup”) and shows the contact’s name and address on screen.
+
+- Build the APK from `android-app/` (Android Studio: open folder → Build → Build APK(s)), or run `./gradlew assembleDebug` from that folder. Install the APK on your device.
+- In the app, set **Published app URL** to your live dialer (e.g. `https://your-app.up.railway.app`).
+- Optional: on the server set **`INBOUND_LOOKUP_API_KEY`** and enter the same key in the app so only the app can call the lookup endpoint.
+- See `android-app/README.md` for permissions and Android 10+ notes (incoming number may be restricted on some devices).
 
 ## Publishing updates (local → published app)
 

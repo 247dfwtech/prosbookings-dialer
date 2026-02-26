@@ -326,6 +326,13 @@ router.post('/booking-tool', async (req, res) => {
 });
 
 router.post('/inbound-lookup', (req, res) => {
+  const apiKey = process.env.INBOUND_LOOKUP_API_KEY;
+  if (apiKey) {
+    const provided = req.headers['x-api-key'] || req.body?.apiKey || '';
+    if (provided !== apiKey) {
+      return res.status(401).json({ error: 'Invalid or missing API key' });
+    }
+  }
   const body = req.body || {};
   const phone = body.phone || body.customer?.number || body.number || '';
   if (!phone) {
