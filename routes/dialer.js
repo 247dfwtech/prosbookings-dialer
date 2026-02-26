@@ -189,6 +189,7 @@ router.post('/test-call', async (req, res) => {
   try {
     console.log('[test-call] Placing call for', dialerId, 'to', phone, 'assistant', dialerConfig.assistantId, 'phoneNumberId', phoneNumberId);
     const call = await createCall({
+      dialerId,
       assistantId: dialerConfig.assistantId,
       phoneNumberId,
       customerNumber: phone,
@@ -196,6 +197,7 @@ router.post('/test-call', async (req, res) => {
       externalId: 'test:test:0',
       variableValues,
       voicemailMessage,
+      isRetry: false,
     });
     console.log('[test-call] VAPI accepted call id:', call?.id || call);
     res.json({ ok: true, message: 'Test call placed', callId: call?.id });
