@@ -11,16 +11,42 @@ const { listAssistants, listPhoneNumbers, createCall } = require('../lib/vapi');
 const scheduler = require('../lib/scheduler');
 const { spin, substituteVariables } = require('../lib/spin');
 
+/**
+ * Validate that the requesting user can access the given dialerId.
+ * - Admin: any dialerId present in config
+ * - Subuser: only their own dialerId (from session)
+ * Returns an error string if denied, null if allowed.
+ */
+function validateDialerAccess(req, dialerId) {
+  if (!dialerId) return 'dialerId required';
+  const role = req.session?.role || 'admin';
+  if (role === 'subuser') {
+    if (dialerId !== req.session.dialerId) return 'Access denied';
+    return null;
+  }
+  // Admin: dialerId must exist in config
+  const config = getConfig();
+  if (!config.dialers[dialerId]) return 'Invalid dialerId';
+  return null;
+}
+
 router.get('/config', (req, res) => {
-  res.json(getConfig());
+  const config = getConfig();
+  const role = req.session?.role || 'admin';
+  if (role === 'subuser') {
+    // Subuser only sees their own dialer config
+    const dialerId = req.session.dialerId;
+    return res.json({ dialers: { [dialerId]: config.dialers[dialerId] || {} } });
+  }
+  res.json(config);
 });
 
 router.put('/config', (req, res) => {
   const body = req.body || {};
   const dialerId = body.dialerId;
-  if (!dialerId || !['dialer1', 'dialer2', 'dialer3'].includes(dialerId)) {
-    return res.status(400).json({ error: 'Invalid dialerId' });
-  }
+  const denied = validateDialerAccess(req, dialerId);
+  if (denied) return res.status(400).json({ error: denied });
+
   console.log('[config] PUT', dialerId, 'targetZip:', body.targetZip !== undefined ? JSON.stringify(body.targetZip) : '(not in body)');
   const config = updateConfig((c) => {
     const d = c.dialers[dialerId] || {};
@@ -35,14 +61,30 @@ router.put('/config', (req, res) => {
 });
 
 router.get('/state', (req, res) => {
-  res.json(getState());
+  const state = getState();
+  const role = req.session?.role || 'admin';
+  if (role === 'subuser') {
+    const dialerId = req.session.dialerId;
+    return res.json({
+      ...state,
+      dialers: { [dialerId]: state.dialers[dialerId] || {} },
+    });
+  }
+  res.json(state);
 });
 
 router.get('/next-up', (req, res) => {
   const config = getConfig();
   const state = getState();
+  const role = req.session?.role || 'admin';
+
+  // Admin sees all dialers in config; subuser sees only their own
+  const dialerIds = role === 'subuser'
+    ? [req.session.dialerId]
+    : Object.keys(config.dialers);
+
   const nextUp = {};
-  for (const id of ['dialer1', 'dialer2', 'dialer3']) {
+  for (const id of dialerIds) {
     const dialerConfig = config.dialers[id];
     if (!dialerConfig?.spreadsheetId || !state.dialers[id]?.running) {
       nextUp[id] = null;
@@ -90,15 +132,16 @@ router.get('/vapi-info', async (req, res) => {
 
 router.post('/start/:dialerId', (req, res) => {
   const { dialerId } = req.params;
-  if (!['dialer1', 'dialer2', 'dialer3'].includes(dialerId)) {
-    return res.status(400).json({ error: 'Invalid dialerId' });
-  }
+  const denied = validateDialerAccess(req, dialerId);
+  if (denied) return res.status(400).json({ error: denied });
+
   const config = getConfig();
   const dialerConfig = config.dialers[dialerId];
   if (!dialerConfig?.assistantId || !dialerConfig?.phoneNumberIds?.length || !dialerConfig?.spreadsheetId) {
     return res.status(400).json({ error: 'Configure assistant, phone numbers, and spreadsheet first' });
   }
   updateState((s) => {
+    if (!s.dialers[dialerId]) s.dialers[dialerId] = {};
     s.dialers[dialerId].running = true;
     s.dialers[dialerId].paused = false;
     return s;
@@ -109,10 +152,11 @@ router.post('/start/:dialerId', (req, res) => {
 
 router.post('/stop/:dialerId', (req, res) => {
   const { dialerId } = req.params;
-  if (!['dialer1', 'dialer2', 'dialer3'].includes(dialerId)) {
-    return res.status(400).json({ error: 'Invalid dialerId' });
-  }
+  const denied = validateDialerAccess(req, dialerId);
+  if (denied) return res.status(400).json({ error: denied });
+
   updateState((s) => {
+    if (!s.dialers[dialerId]) s.dialers[dialerId] = {};
     s.dialers[dialerId].running = false;
     s.dialers[dialerId].paused = false;
     return s;
@@ -123,10 +167,11 @@ router.post('/stop/:dialerId', (req, res) => {
 
 router.post('/pause/:dialerId', (req, res) => {
   const { dialerId } = req.params;
-  if (!['dialer1', 'dialer2', 'dialer3'].includes(dialerId)) {
-    return res.status(400).json({ error: 'Invalid dialerId' });
-  }
+  const denied = validateDialerAccess(req, dialerId);
+  if (denied) return res.status(400).json({ error: denied });
+
   updateState((s) => {
+    if (!s.dialers[dialerId]) s.dialers[dialerId] = {};
     s.dialers[dialerId].paused = true;
     return s;
   });
@@ -135,34 +180,39 @@ router.post('/pause/:dialerId', (req, res) => {
 
 router.post('/resume/:dialerId', (req, res) => {
   const { dialerId } = req.params;
-  if (!['dialer1', 'dialer2', 'dialer3'].includes(dialerId)) {
-    return res.status(400).json({ error: 'Invalid dialerId' });
-  }
+  const denied = validateDialerAccess(req, dialerId);
+  if (denied) return res.status(400).json({ error: denied });
+
   updateState((s) => {
+    if (!s.dialers[dialerId]) s.dialers[dialerId] = {};
     s.dialers[dialerId].paused = false;
     return s;
   });
   res.json({ ok: true, paused: false });
 });
 
-const DIALER_IDS = ['dialer1', 'dialer2', 'dialer3'];
-
 router.post('/pause-all', (req, res) => {
+  const config = getConfig();
+  const role = req.session?.role || 'admin';
+  const dialerIds = role === 'subuser'
+    ? [req.session.dialerId]
+    : Object.keys(config.dialers);
+
   updateState((s) => {
-    DIALER_IDS.forEach((id) => {
+    dialerIds.forEach((id) => {
       if (s.dialers[id]) s.dialers[id].paused = true;
     });
     return s;
   });
-  res.json({ ok: true, message: 'All dialers paused.' });
+  res.json({ ok: true, message: 'Dialers paused.' });
 });
 
 router.post('/test-call', async (req, res) => {
   console.log('[test-call] Request received', { body: req.body });
   const { dialerId, firstName, address, phone } = req.body || {};
-  if (!dialerId || !['dialer1', 'dialer2', 'dialer3'].includes(dialerId)) {
-    return res.status(400).json({ error: 'Invalid dialerId' });
-  }
+  const denied = validateDialerAccess(req, dialerId);
+  if (denied) return res.status(400).json({ error: denied });
+
   if (!phone || String(phone).replace(/\D/g, '').length < 10) {
     return res.status(400).json({ error: 'Valid phone number required (10 digits)' });
   }

@@ -7,7 +7,6 @@ const session = require('express-session');
 
 function validateEnv() {
   const missing = [];
-  if (!process.env.SITE_PASSWORD_HASH) missing.push('SITE_PASSWORD_HASH');
   if (!process.env.VAPI_API_KEY) missing.push('VAPI_API_KEY');
   if (missing.length) {
     console.error('Missing required environment variables:', missing.join(', '));
@@ -29,11 +28,16 @@ try {
   console.warn('Could not create upload/data dirs:', e.message);
 }
 
+// Seed users.json on first run (admin + Zeke)
+const { seedUsers } = require('./lib/users');
+seedUsers();
+
 const authRouter = require('./routes/auth');
 const dialerRouter = require('./routes/dialer');
 const uploadRouter = require('./routes/upload');
 const webhooksRouter = require('./routes/webhooks');
-const { requireAuth } = require('./routes/auth');
+const adminRouter = require('./routes/admin');
+const { requireAuth, requireAdmin } = require('./routes/auth');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -82,6 +86,7 @@ app.use('/api/webhook', webhooksRouter);
 app.use('/api/auth', authRouter);
 app.use('/api/dialer', requireAuth, dialerRouter);
 app.use('/api/upload', requireAuth, uploadRouter);
+app.use('/api/admin', requireAuth, requireAdmin, adminRouter);
 app.use(express.static(path.join(__dirname, 'public')));
 
 app.get('/dashboard', requireAuth, (req, res) => {
@@ -102,8 +107,9 @@ const scheduler = require('./lib/scheduler');
 const server = app.listen(PORT, () => {
   console.log(`Adrian's COLD Calling Beast at http://localhost:${PORT} (VAPI_API_KEY set: ${!!process.env.VAPI_API_KEY})`);
   const state = getState();
-  for (const id of ['dialer1', 'dialer2', 'dialer3']) {
-    if (state.dialers[id]?.running) {
+  // Restore ALL running dialers (not just dialer1-3) — includes subuser dialers
+  for (const [id, dialerState] of Object.entries(state.dialers || {})) {
+    if (dialerState?.running) {
       console.log(`[startup] Restoring running dialer ${id}`);
       scheduler.startDialer(id);
     }

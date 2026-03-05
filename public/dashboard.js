@@ -1,5 +1,7 @@
 (function () {
-  const DIALER_IDS = ['dialer1', 'dialer2', 'dialer3'];
+  // Populated after auth check
+  let currentUser = { role: 'admin', dialerId: null, username: '' };
+  let DIALER_IDS = ['dialer1', 'dialer2', 'dialer3'];
 
   async function api(path, opts = {}) {
     const res = await fetch(path, {
@@ -263,7 +265,7 @@
         <label>Days of week</label>
         <div class="row days-of-week">
           ${['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].map((day, idx) => {
-            const dayNum = idx === 6 ? 0 : idx + 1; // Sun=0, Mon=1, ..., Sat=6
+            const dayNum = idx === 6 ? 0 : idx + 1;
             const checked = (d.daysOfWeek || [1,2,3,4,5]).includes(dayNum);
             return `<label class="${checked ? 'day-checked' : ''}"><input type="checkbox" class="dialer-day" data-day="${dayNum}" data-dialer="${dialerId}" ${checked ? 'checked' : ''}> ${day}</label>`;
           }).join('')}
@@ -335,13 +337,51 @@
     `;
   }
 
+  /** Compact dialer for subuser: just status, stats, and Start/Stop/Pause. */
+  function renderCompactDialer(dialerId) {
+    const s = state.dialers[dialerId] || {};
+    const running = !!s.running;
+    const paused = !!s.paused;
+    const statusText = !running ? 'Stopped' : paused ? 'Paused' : 'Running';
+    const stats = {
+      placed: s.callsPlacedToday ?? 0,
+      answered: s.callsAnsweredToday ?? 0,
+      notAnswered: s.callsNotAnsweredToday ?? 0,
+      booked: state.appointmentsBookedToday ?? 0,
+    };
+    return `
+      <div class="dialer-box" data-dialer="${dialerId}">
+        <h2>Your Dialer</h2>
+        <div class="status ${running && !paused ? 'running' : ''} ${paused ? 'paused' : ''}" id="status-${dialerId}">${statusText}</div>
+        <p class="next-up" id="next-up-${dialerId}"></p>
+        <div style="margin: 16px 0;">
+          <button type="button" class="btn-primary btn-start" data-dialer="${dialerId}" ${running ? 'disabled' : ''}>Start</button>
+          <button type="button" class="btn-secondary btn-pause" data-dialer="${dialerId}" ${!running || paused ? 'disabled' : ''}>Pause</button>
+          <button type="button" class="btn-secondary btn-resume" data-dialer="${dialerId}" ${!running || !paused ? 'disabled' : ''}>Resume</button>
+          <button type="button" class="btn-danger btn-stop" data-dialer="${dialerId}" ${!running ? 'disabled' : ''}>Stop</button>
+        </div>
+        <div class="stats-box" data-dialer="${dialerId}">
+          <h3 class="stats-title">Today's stats (CST)</h3>
+          <div class="stats-row"><span>Calls placed</span><strong id="stats-placed-${dialerId}">${stats.placed}</strong></div>
+          <div class="stats-row"><span>Calls answered</span><strong id="stats-answered-${dialerId}">${stats.answered}</strong></div>
+          <div class="stats-row"><span>Calls not answered</span><strong id="stats-notanswered-${dialerId}">${stats.notAnswered}</strong></div>
+          <div class="stats-row"><span>Appointments booked</span><strong id="stats-booked-${dialerId}">${stats.booked}</strong></div>
+        </div>
+      </div>
+    `;
+  }
+
   function getUploadList() {
     return (window.__uploadList || []).map((f) => ({ uploadId: f.uploadId, originalName: f.originalName }));
   }
 
   function refreshDialers() {
     vapiInfo.uploadList = getUploadList();
-    document.getElementById('dialer-grid').innerHTML = DIALER_IDS.map(renderDialer).join('');
+    if (currentUser.role === 'subuser') {
+      document.getElementById('dialer-grid').innerHTML = DIALER_IDS.map(renderCompactDialer).join('');
+    } else {
+      document.getElementById('dialer-grid').innerHTML = DIALER_IDS.map(renderDialer).join('');
+    }
     bindDialerEvents();
   }
 
@@ -424,7 +464,7 @@
       startTime: startTime?.value || '',
       endTime: endTime?.value || '',
       targetZip: targetZip?.value?.trim() || '',
-      daysOfWeek: daysOfWeek.length > 0 ? daysOfWeek : [1, 2, 3, 4, 5], // Default Mon-Fri if none selected
+      daysOfWeek: daysOfWeek.length > 0 ? daysOfWeek : [1, 2, 3, 4, 5],
     };
   }
 
@@ -522,7 +562,8 @@
     document.querySelectorAll('.btn-start').forEach((btn) => {
       btn.addEventListener('click', async () => {
         const id = btn.dataset.dialer;
-        await saveDialerConfig(id);
+        // Only save full config for admin dialers (subuser view has no settings form)
+        if (currentUser.role === 'admin') await saveDialerConfig(id);
         await api(`/api/dialer/start/${id}`, { method: 'POST' });
         await loadState();
         refreshDialers();
@@ -586,138 +627,245 @@
     });
   }
 
+  // ──────────────────────────────────────────────────────────
+  // Subuser Management (admin only)
+  // ──────────────────────────────────────────────────────────
+
+  async function renderSubuserMgmt() {
+    const section = document.getElementById('subuser-mgmt-section');
+    if (!section) return;
+    section.style.display = 'block';
+
+    let subusers = [];
+    try {
+      subusers = await api('/api/admin/users');
+    } catch (_) {}
+
+    section.innerHTML = `
+      <h2>Subuser Management</h2>
+      <div id="subuser-list">
+        ${subusers.length === 0
+          ? '<p class="muted">No subusers yet.</p>'
+          : subusers.map((u) => `
+            <div class="subuser-row" data-username="${escapeHtml(u.username)}">
+              <strong>${escapeHtml(u.username)}</strong>
+              <span class="muted" style="margin-left:8px;">(${escapeHtml(u.dialerId)})</span>
+              <button type="button" class="btn-secondary btn-subuser-settings" data-username="${escapeHtml(u.username)}" data-dialer-id="${escapeHtml(u.dialerId)}" style="margin-left:12px;">Subuser Settings</button>
+              <button type="button" class="btn-danger btn-delete-subuser" data-username="${escapeHtml(u.username)}" style="margin-left:8px;">Delete</button>
+              <div class="subuser-settings-panel" id="settings-panel-${escapeHtml(u.dialerId)}" style="display:none; margin-top:12px;"></div>
+            </div>
+          `).join('')}
+      </div>
+      <hr style="margin: 20px 0;">
+      <h3>Add subuser</h3>
+      <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
+        <input type="text" id="new-subuser-username" placeholder="Username" style="width:140px;">
+        <input type="password" id="new-subuser-password" placeholder="Password" style="width:140px;">
+        <button type="button" class="btn-primary" id="btn-create-subuser">Create</button>
+      </div>
+      <p id="subuser-create-status" style="margin-top:8px;"></p>
+    `;
+
+    bindSubuserMgmtEvents();
+  }
+
+  function bindSubuserMgmtEvents() {
+    // Delete subuser
+    document.querySelectorAll('.btn-delete-subuser').forEach((btn) => {
+      btn.addEventListener('click', async () => {
+        const username = btn.dataset.username;
+        if (!confirm(`Delete subuser "${username}"? Their dialer will be stopped.`)) return;
+        try {
+          await api(`/api/admin/users/${encodeURIComponent(username)}`, { method: 'DELETE' });
+          await renderSubuserMgmt();
+        } catch (e) {
+          alert(e.message || 'Delete failed');
+        }
+      });
+    });
+
+    // Subuser Settings toggle — shows full dialer config panel for that subuser's dialerId
+    document.querySelectorAll('.btn-subuser-settings').forEach((btn) => {
+      btn.addEventListener('click', async () => {
+        const dialerId = btn.dataset.dialerId;
+        const panel = document.getElementById(`settings-panel-${dialerId}`);
+        if (!panel) return;
+        if (panel.style.display !== 'none') {
+          panel.style.display = 'none';
+          btn.textContent = 'Subuser Settings';
+          return;
+        }
+        btn.textContent = 'Hide Settings';
+        // Fetch latest vapi info and config to render the settings panel
+        try {
+          if (!vapiInfo.assistants?.length) vapiInfo = await api('/api/dialer/vapi-info');
+          vapiInfo.uploadList = getUploadList();
+          await loadConfig();
+          await loadState();
+        } catch (_) {}
+        panel.style.display = 'block';
+        panel.innerHTML = renderDialer(dialerId);
+        bindDialerEvents();
+      });
+    });
+
+    // Create subuser
+    document.getElementById('btn-create-subuser')?.addEventListener('click', async () => {
+      const username = document.getElementById('new-subuser-username')?.value?.trim();
+      const password = document.getElementById('new-subuser-password')?.value;
+      const statusEl = document.getElementById('subuser-create-status');
+      if (!username || !password) {
+        if (statusEl) statusEl.textContent = 'Username and password required.';
+        return;
+      }
+      try {
+        const data = await api('/api/admin/users', {
+          method: 'POST',
+          body: JSON.stringify({ username, password }),
+        });
+        if (data.ok) {
+          if (statusEl) statusEl.textContent = '';
+          await renderSubuserMgmt();
+        } else {
+          if (statusEl) statusEl.textContent = data.error || 'Failed to create';
+        }
+      } catch (e) {
+        if (statusEl) statusEl.textContent = e.message || 'Failed to create';
+      }
+    });
+  }
+
+  // ──────────────────────────────────────────────────────────
+  // Shared event bindings (both admin and subuser)
+  // ──────────────────────────────────────────────────────────
+
   document.getElementById('btn-logout').addEventListener('click', async () => {
     await api('/api/auth/logout', { method: 'POST' });
     window.location.href = '/';
   });
 
-  document.getElementById('btn-refresh-sheet').addEventListener('click', () => {
-    if (window.__currentSheetUploadId) {
-      viewSpreadsheet(window.__currentSheetUploadId);
-    } else if (window.__currentSpecialView === 'blacklist') {
-      viewBlacklist();
-    } else if (window.__currentSpecialView === 'booked') {
-      viewBooked();
-    }
-  });
+  const btnRefreshSheet = document.getElementById('btn-refresh-sheet');
+  if (btnRefreshSheet) {
+    btnRefreshSheet.addEventListener('click', () => {
+      if (window.__currentSheetUploadId) {
+        viewSpreadsheet(window.__currentSheetUploadId);
+      } else if (window.__currentSpecialView === 'blacklist') {
+        viewBlacklist();
+      } else if (window.__currentSpecialView === 'booked') {
+        viewBooked();
+      }
+    });
+  }
 
-  document.getElementById('btn-filter-success').addEventListener('click', () => {
-    filterSuccessOnly = !filterSuccessOnly;
-    const btn = document.getElementById('btn-filter-success');
-    btn.textContent = filterSuccessOnly ? 'Show all' : 'Success evaluation True';
-    btn.classList.toggle('btn-primary', filterSuccessOnly);
-    btn.classList.toggle('btn-secondary', !filterSuccessOnly);
-    if (window.__currentSheetData) {
-      renderSheetTable(window.__currentSheetData.headers, window.__currentSheetData.rows);
-    }
-  });
+  const btnFilterSuccess = document.getElementById('btn-filter-success');
+  if (btnFilterSuccess) {
+    btnFilterSuccess.addEventListener('click', () => {
+      filterSuccessOnly = !filterSuccessOnly;
+      btnFilterSuccess.textContent = filterSuccessOnly ? 'Show all' : 'Success evaluation True';
+      btnFilterSuccess.classList.toggle('btn-primary', filterSuccessOnly);
+      btnFilterSuccess.classList.toggle('btn-secondary', !filterSuccessOnly);
+      if (window.__currentSheetData) {
+        renderSheetTable(window.__currentSheetData.headers, window.__currentSheetData.rows);
+      }
+    });
+  }
 
   const phoneLookupInput = document.getElementById('phone-lookup-input');
   const phoneLookupResult = document.getElementById('phone-lookup-result');
-  document.getElementById('btn-phone-lookup').addEventListener('click', runPhoneLookup);
+  const btnPhoneLookup = document.getElementById('btn-phone-lookup');
+  if (btnPhoneLookup) btnPhoneLookup.addEventListener('click', runPhoneLookup);
   if (phoneLookupInput) {
     phoneLookupInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); runPhoneLookup(); } });
   }
   async function runPhoneLookup() {
     const phone = (phoneLookupInput?.value || '').trim();
     if (!phone) {
-      phoneLookupResult.innerHTML = '<p class="phone-lookup-msg">Enter a phone number.</p>';
+      if (phoneLookupResult) phoneLookupResult.innerHTML = '<p class="phone-lookup-msg">Enter a phone number.</p>';
       return;
     }
     if (phone.replace(/\D/g, '').length < 10) {
-      phoneLookupResult.innerHTML = '<p class="phone-lookup-msg error">Enter at least 10 digits.</p>';
+      if (phoneLookupResult) phoneLookupResult.innerHTML = '<p class="phone-lookup-msg error">Enter at least 10 digits.</p>';
       return;
     }
-    phoneLookupResult.innerHTML = '<p class="phone-lookup-msg">Searching…</p>';
+    if (phoneLookupResult) phoneLookupResult.innerHTML = '<p class="phone-lookup-msg">Searching…</p>';
     try {
       const data = await api(`/api/upload/phone-lookup?phone=${encodeURIComponent(phone)}`);
       const matches = data.matches || [];
       if (matches.length === 0) {
-        phoneLookupResult.innerHTML = '<p class="phone-lookup-msg">No matches in any spreadsheet.</p>';
+        if (phoneLookupResult) phoneLookupResult.innerHTML = '<p class="phone-lookup-msg">No matches in any spreadsheet.</p>';
         return;
       }
-      phoneLookupResult.innerHTML = matches.map((m) => {
+      if (phoneLookupResult) phoneLookupResult.innerHTML = matches.map((m) => {
         const name = [m.firstName, m.lastName].filter(Boolean).join(' ') || '—';
         const address = [m.address, m.city, m.zip].filter(Boolean).join(', ') || '—';
         return `<div class="phone-lookup-card">
           <div class="phone-lookup-name">${escapeHtml(name)}</div>
           <div class="phone-lookup-address">${escapeHtml(address)}</div>
-          <div class="phone-lookup-spreadsheet">Found in: ${escapeHtml(m.spreadsheetName)} <a href="#" class="link-view-sheet" data-upload-id="${escapeHtml(m.uploadId)}">View</a></div>
+          <div class="phone-lookup-spreadsheet">Found in: ${escapeHtml(m.spreadsheetName)}</div>
         </div>`;
       }).join('');
-      phoneLookupResult.querySelectorAll('.link-view-sheet').forEach((a) => {
-        a.addEventListener('click', (e) => { e.preventDefault(); viewSpreadsheet(a.dataset.uploadId); });
-      });
     } catch (e) {
-      phoneLookupResult.innerHTML = `<p class="phone-lookup-msg error">${escapeHtml(e.message || 'Search failed')}</p>`;
+      if (phoneLookupResult) phoneLookupResult.innerHTML = `<p class="phone-lookup-msg error">${escapeHtml(e.message || 'Search failed')}</p>`;
     }
   }
 
-  document.getElementById('btn-pause-all').addEventListener('click', async () => {
-    const btn = document.getElementById('btn-pause-all');
-    const prevText = btn.textContent;
-    btn.disabled = true;
-    btn.textContent = 'Pausing…';
-    try {
-      const data = await api('/api/dialer/pause-all', { method: 'POST' });
-      if (data.ok) {
-        await loadState();
+  const btnPauseAll = document.getElementById('btn-pause-all');
+  if (btnPauseAll) {
+    btnPauseAll.addEventListener('click', async () => {
+      const prevText = btnPauseAll.textContent;
+      btnPauseAll.disabled = true;
+      btnPauseAll.textContent = 'Pausing…';
+      try {
+        const data = await api('/api/dialer/pause-all', { method: 'POST' });
+        if (data.ok) {
+          await loadState();
+          refreshDialers();
+        } else {
+          alert(data.error || 'Failed to pause');
+        }
+      } catch (e) {
+        alert(e.message || 'Failed to pause all');
+      } finally {
+        btnPauseAll.disabled = false;
+        btnPauseAll.textContent = prevText;
+      }
+    });
+  }
+
+  // Admin-only upload/blacklist events (only bound if elements exist)
+  const btnUpload = document.getElementById('btn-upload');
+  if (btnUpload) {
+    btnUpload.addEventListener('click', async () => {
+      const input = document.getElementById('file-input');
+      if (!input.files?.length) { alert('Select a file first'); return; }
+      const form = new FormData();
+      form.append('file', input.files[0]);
+      const prevText = btnUpload.textContent;
+      btnUpload.disabled = true;
+      btnUpload.textContent = 'Uploading…';
+      try {
+        const res = await fetch('/api/upload', { method: 'POST', body: form, credentials: 'same-origin' });
+        const data = await res.json().catch(() => ({}));
+        if (res.status === 401) { window.location.href = '/'; return; }
+        if (!res.ok) { alert(data.error || 'Upload failed'); return; }
+        input.value = '';
+        const list = await loadUploads();
+        window.__uploadList = list;
+        renderFileList(list);
         refreshDialers();
-        alert(data.message || 'All dialers paused.');
-      } else {
-        alert(data.error || 'Failed to pause');
+      } catch (e) {
+        alert(e.message || 'Upload failed (network error)');
+      } finally {
+        btnUpload.disabled = false;
+        btnUpload.textContent = prevText;
       }
-    } catch (e) {
-      alert(e.message || 'Failed to pause all');
-    } finally {
-      btn.disabled = false;
-      btn.textContent = prevText;
-    }
-  });
+    });
+  }
 
-  document.getElementById('btn-upload').addEventListener('click', async () => {
-    const input = document.getElementById('file-input');
-    const btn = document.getElementById('btn-upload');
-    if (!input.files?.length) {
-      alert('Select a file first');
-      return;
-    }
-    const form = new FormData();
-    form.append('file', input.files[0]);
-    const prevText = btn.textContent;
-    btn.disabled = true;
-    btn.textContent = 'Uploading…';
-    try {
-      const res = await fetch('/api/upload', {
-        method: 'POST',
-        body: form,
-        credentials: 'same-origin',
-      });
-      const data = await res.json().catch(() => ({}));
-      if (res.status === 401) {
-        window.location.href = '/';
-        return;
-      }
-      if (!res.ok) {
-        alert(data.error || 'Upload failed');
-        return;
-      }
-      input.value = '';
-      const list = await loadUploads();
-      window.__uploadList = list;
-      renderFileList(list);
-      refreshDialers();
-    } catch (e) {
-      alert(e.message || 'Upload failed (network error)');
-    } finally {
-      btn.disabled = false;
-      btn.textContent = prevText;
-    }
-  });
-
-  document.getElementById('btn-download-all').addEventListener('click', () => {
-    window.location.href = '/api/upload/download-all';
-  });
+  const btnDownloadAll = document.getElementById('btn-download-all');
+  if (btnDownloadAll) {
+    btnDownloadAll.addEventListener('click', () => { window.location.href = '/api/upload/download-all'; });
+  }
 
   async function updateBlacklistBookedStatus() {
     try {
@@ -725,181 +873,171 @@
         api('/api/upload/blacklist/status').catch(() => ({ exists: false, count: 0 })),
         api('/api/upload/booked/status').catch(() => ({ exists: false, count: 0 })),
       ]);
-      
       const blacklistEl = document.getElementById('blacklist-status');
       const bookedEl = document.getElementById('booked-status');
-      
       if (blacklistEl) {
-        if (blacklistStatus.exists && blacklistStatus.count > 0) {
-          blacklistEl.textContent = `(${blacklistStatus.count} phone${blacklistStatus.count !== 1 ? 's' : ''})`;
-          blacklistEl.style.color = '#666';
-        } else {
-          blacklistEl.textContent = '(empty)';
-          blacklistEl.style.color = '#999';
-        }
+        blacklistEl.textContent = (blacklistStatus.exists && blacklistStatus.count > 0) ? `(${blacklistStatus.count} phone${blacklistStatus.count !== 1 ? 's' : ''})` : '(empty)';
+        blacklistEl.style.color = (blacklistStatus.exists && blacklistStatus.count > 0) ? '#666' : '#999';
       }
-      
       if (bookedEl) {
-        if (bookedStatus.exists && bookedStatus.count > 0) {
-          bookedEl.textContent = `(${bookedStatus.count} booking${bookedStatus.count !== 1 ? 's' : ''})`;
-          bookedEl.style.color = '#666';
-        } else {
-          bookedEl.textContent = '(empty)';
-          bookedEl.style.color = '#999';
-        }
+        bookedEl.textContent = (bookedStatus.exists && bookedStatus.count > 0) ? `(${bookedStatus.count} booking${bookedStatus.count !== 1 ? 's' : ''})` : '(empty)';
+        bookedEl.style.color = (bookedStatus.exists && bookedStatus.count > 0) ? '#666' : '#999';
       }
-    } catch (e) {
-      console.error('Failed to update blacklist/booked status:', e);
+    } catch (_) {}
+  }
+
+  const btnUploadBlacklist = document.getElementById('btn-upload-blacklist');
+  if (btnUploadBlacklist) {
+    btnUploadBlacklist.addEventListener('click', () => document.getElementById('blacklist-upload-input').click());
+  }
+  const blacklistUploadInput = document.getElementById('blacklist-upload-input');
+  if (blacklistUploadInput) {
+    blacklistUploadInput.addEventListener('change', async () => {
+      if (!blacklistUploadInput.files?.length) return;
+      const file = blacklistUploadInput.files[0];
+      if (file.name.toLowerCase() !== 'blacklist.txt') { alert('File must be named blacklist.txt'); blacklistUploadInput.value = ''; return; }
+      const form = new FormData();
+      form.append('file', file);
+      try {
+        const res = await fetch('/api/upload/blacklist/upload', { method: 'POST', body: form, credentials: 'same-origin' });
+        const data = await res.json().catch(() => ({}));
+        if (res.status === 401) { window.location.href = '/'; return; }
+        if (!res.ok) { alert(data.error || 'Upload failed'); return; }
+        alert(data.message || 'Blacklist uploaded successfully');
+        blacklistUploadInput.value = '';
+        updateBlacklistBookedStatus();
+      } catch (e) { alert(e.message || 'Upload failed'); }
+    });
+  }
+
+  const btnUploadBooked = document.getElementById('btn-upload-booked');
+  if (btnUploadBooked) {
+    btnUploadBooked.addEventListener('click', () => document.getElementById('booked-upload-input').click());
+  }
+  const bookedUploadInput = document.getElementById('booked-upload-input');
+  if (bookedUploadInput) {
+    bookedUploadInput.addEventListener('change', async () => {
+      if (!bookedUploadInput.files?.length) return;
+      const file = bookedUploadInput.files[0];
+      const name = file.name.toLowerCase();
+      if (name !== 'booked.xlsx' && name !== 'booked.xls') { alert('File must be named booked.xlsx or booked.xls'); bookedUploadInput.value = ''; return; }
+      const form = new FormData();
+      form.append('file', file);
+      try {
+        const res = await fetch('/api/upload/booked/upload', { method: 'POST', body: form, credentials: 'same-origin' });
+        const data = await res.json().catch(() => ({}));
+        if (res.status === 401) { window.location.href = '/'; return; }
+        if (!res.ok) { alert(data.error || 'Upload failed'); return; }
+        alert(data.message || 'Booked file uploaded successfully');
+        bookedUploadInput.value = '';
+        updateBlacklistBookedStatus();
+      } catch (e) { alert(e.message || 'Upload failed'); }
+    });
+  }
+
+  const btnViewBlacklist = document.getElementById('btn-view-blacklist');
+  if (btnViewBlacklist) btnViewBlacklist.addEventListener('click', (e) => { e.preventDefault(); viewBlacklist(); });
+
+  const btnViewBooked = document.getElementById('btn-view-booked');
+  if (btnViewBooked) btnViewBooked.addEventListener('click', (e) => { e.preventDefault(); viewBooked(); });
+
+  const btnUpdateBlacklists = document.getElementById('btn-update-blacklists');
+  if (btnUpdateBlacklists) {
+    btnUpdateBlacklists.addEventListener('click', async () => {
+      const prevText = btnUpdateBlacklists.textContent;
+      btnUpdateBlacklists.disabled = true;
+      btnUpdateBlacklists.textContent = 'Updating…';
+      try {
+        const data = await api('/api/upload/update-blacklists', { method: 'POST' });
+        if (data.ok) {
+          alert(data.message || `Processed ${data.processed} spreadsheet(s).`);
+          updateBlacklistBookedStatus();
+        } else {
+          alert(data.error || 'Update failed');
+        }
+      } catch (e) {
+        alert(e.message || 'Update failed');
+      } finally {
+        btnUpdateBlacklists.disabled = false;
+        btnUpdateBlacklists.textContent = prevText;
+      }
+    });
+  }
+
+  const btnClearBlacklistBooked = document.getElementById('btn-clear-blacklist-booked');
+  if (btnClearBlacklistBooked) {
+    btnClearBlacklistBooked.addEventListener('click', async () => {
+      if (!confirm('Clear blacklist and booked? This cannot be undone.')) return;
+      const prevText = btnClearBlacklistBooked.textContent;
+      btnClearBlacklistBooked.disabled = true;
+      btnClearBlacklistBooked.textContent = 'Clearing…';
+      try {
+        const data = await api('/api/upload/clear-blacklist-booked', { method: 'POST' });
+        if (data.ok) {
+          updateBlacklistBookedStatus();
+          if (window.__currentSpecialView === 'blacklist' || window.__currentSpecialView === 'booked') {
+            document.getElementById('spreadsheet-view-section').style.display = 'none';
+            window.__currentSpecialView = null;
+          }
+          alert(data.message || 'Cleared.');
+        } else {
+          alert(data.error || 'Clear failed');
+        }
+      } catch (e) {
+        alert(e.message || 'Clear failed');
+      } finally {
+        btnClearBlacklistBooked.disabled = false;
+        btnClearBlacklistBooked.textContent = prevText;
+      }
+    });
+  }
+
+  // ──────────────────────────────────────────────────────────
+  // Init
+  // ──────────────────────────────────────────────────────────
+
+  async function init() {
+    // Check who's logged in
+    try {
+      const authInfo = await api('/api/auth/check');
+      if (!authInfo.authenticated) { window.location.href = '/'; return; }
+      currentUser = { role: authInfo.role || 'admin', dialerId: authInfo.dialerId || null, username: authInfo.username || '' };
+    } catch (_) {}
+
+    if (currentUser.role === 'subuser') {
+      await initSubuser();
+    } else {
+      await initAdmin();
     }
   }
 
-  // Upload blacklist.txt
-  document.getElementById('btn-upload-blacklist').addEventListener('click', () => {
-    document.getElementById('blacklist-upload-input').click();
-  });
-  document.getElementById('blacklist-upload-input').addEventListener('change', async () => {
-    const input = document.getElementById('blacklist-upload-input');
-    if (!input.files?.length) return;
-    const file = input.files[0];
-    if (file.name.toLowerCase() !== 'blacklist.txt') {
-      alert('File must be named blacklist.txt');
-      input.value = '';
-      return;
-    }
-    const form = new FormData();
-    form.append('file', file);
-    try {
-      const res = await fetch('/api/upload/blacklist/upload', {
-        method: 'POST',
-        body: form,
-        credentials: 'same-origin',
-      });
-      const data = await res.json().catch(() => ({}));
-      if (res.status === 401) {
-        window.location.href = '/';
-        return;
-      }
-      if (!res.ok) {
-        alert(data.error || 'Upload failed');
-        return;
-      }
-      alert(data.message || 'Blacklist uploaded successfully');
-      input.value = '';
-      updateBlacklistBookedStatus();
-    } catch (e) {
-      alert(e.message || 'Upload failed (network error)');
-    }
-  });
-
-  // Upload booked.xlsx
-  document.getElementById('btn-upload-booked').addEventListener('click', () => {
-    document.getElementById('booked-upload-input').click();
-  });
-
-  document.getElementById('btn-view-blacklist').addEventListener('click', (e) => {
-    e.preventDefault();
-    viewBlacklist();
-  });
-
-  document.getElementById('btn-view-booked').addEventListener('click', (e) => {
-    e.preventDefault();
-    viewBooked();
-  });
-  document.getElementById('booked-upload-input').addEventListener('change', async () => {
-    const input = document.getElementById('booked-upload-input');
-    if (!input.files?.length) return;
-    const file = input.files[0];
-    const name = file.name.toLowerCase();
-    if (name !== 'booked.xlsx' && name !== 'booked.xls') {
-      alert('File must be named booked.xlsx or booked.xls');
-      input.value = '';
-      return;
-    }
-    const form = new FormData();
-    form.append('file', file);
-    try {
-      const res = await fetch('/api/upload/booked/upload', {
-        method: 'POST',
-        body: form,
-        credentials: 'same-origin',
-      });
-      const data = await res.json().catch(() => ({}));
-      if (res.status === 401) {
-        window.location.href = '/';
-        return;
-      }
-      if (!res.ok) {
-        alert(data.error || 'Upload failed');
-        return;
-      }
-      alert(data.message || 'Booked file uploaded successfully');
-      input.value = '';
-      updateBlacklistBookedStatus();
-    } catch (e) {
-      alert(e.message || 'Upload failed (network error)');
-    }
-  });
-
-  // Update status on page load and after update-blacklists
-  updateBlacklistBookedStatus();
-  document.getElementById('btn-update-blacklists').addEventListener('click', async () => {
-    const btn = document.getElementById('btn-update-blacklists');
-    const prevText = btn.textContent;
-    btn.disabled = true;
-    btn.textContent = 'Updating…';
-    try {
-      const data = await api('/api/upload/update-blacklists', { method: 'POST' });
-      if (data.ok) {
-        alert(data.message || `Processed ${data.processed} spreadsheet(s). Added ${data.blacklisted} phone(s) to blacklist, ${data.booked} booking(s) to booked.xlsx.`);
-        updateBlacklistBookedStatus(); // Refresh status after update
-      } else {
-        alert(data.error || 'Update failed');
-      }
-    } catch (e) {
-      alert(e.message || 'Update failed (network error)');
-    } finally {
-      btn.disabled = false;
-      btn.textContent = prevText;
-    }
-  });
-
-  document.getElementById('btn-clear-blacklist-booked').addEventListener('click', async () => {
-    if (!confirm('Clear blacklist and booked? This will remove all phone numbers from blacklist.txt and all rows from booked.xlsx. This cannot be undone.')) {
-      return;
-    }
-    const btn = document.getElementById('btn-clear-blacklist-booked');
-    const prevText = btn.textContent;
-    btn.disabled = true;
-    btn.textContent = 'Clearing…';
-    try {
-      const data = await api('/api/upload/clear-blacklist-booked', { method: 'POST' });
-      if (data.ok) {
-        updateBlacklistBookedStatus();
-        if (window.__currentSpecialView === 'blacklist' || window.__currentSpecialView === 'booked') {
-          document.getElementById('spreadsheet-view-section').style.display = 'none';
-          window.__currentSpecialView = null;
-        }
-        alert(data.message || 'Blacklist and booked cleared.');
-      } else {
-        alert(data.error || 'Clear failed');
-      }
-    } catch (e) {
-      alert(e.message || 'Clear failed (network error)');
-    } finally {
-      btn.disabled = false;
-      btn.textContent = prevText;
-    }
-  });
-
-  async function init() {
+  async function initAdmin() {
+    DIALER_IDS = ['dialer1', 'dialer2', 'dialer3'];
     const list = await loadUploads();
     window.__uploadList = list;
     renderFileList(list);
     await loadConfig();
     await loadState();
-    try {
-      await loadVapiInfo();
-    } catch (_) {}
+    try { await loadVapiInfo(); } catch (_) {}
+    refreshDialers();
+    updateBlacklistBookedStatus();
+    setInterval(updateStatsOnly, 10000);
+    // Render subuser management section
+    await renderSubuserMgmt();
+  }
+
+  async function initSubuser() {
+    DIALER_IDS = [currentUser.dialerId];
+    // Hide admin-only UI sections
+    const uploadSection = document.querySelector('.upload-section');
+    if (uploadSection) uploadSection.style.display = 'none';
+    const spreadsheetViewSection = document.getElementById('spreadsheet-view-section');
+    if (spreadsheetViewSection) spreadsheetViewSection.style.display = 'none';
+    // Update header to show username
+    const titleEl = document.querySelector('.app-title');
+    if (titleEl) titleEl.textContent = `Dialer – ${currentUser.username}`;
+    // Load state and render compact dialer
+    await loadState();
     refreshDialers();
     setInterval(updateStatsOnly, 10000);
   }
