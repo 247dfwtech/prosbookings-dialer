@@ -13,6 +13,8 @@
     <h1 class="app-title">Adrian's COLD Calling Beast</h1>
     <p class="login-subtitle">Sign in to run your list</p>
     <form method="post" action="/api/auth/login" id="login-form">
+      <label for="username">Username</label>
+      <input type="text" id="username" name="username" required placeholder="Username" autocomplete="username">
       <label for="password">Password</label>
       <input type="password" id="password" name="password" required placeholder="Password" autocomplete="current-password">
       <button type="submit">Log in</button>
@@ -24,7 +26,7 @@
       var params = new URLSearchParams(window.location.search);
       var el = document.getElementById('login-error');
       if (params.get('error') === 'invalid') {
-        el.textContent = 'Invalid password';
+        el.textContent = 'Invalid username or password';
         el.hidden = false;
       } else if (params.get('error') === 'too_many') {
         el.textContent = 'Too many attempts. Try again in 15 minutes.';

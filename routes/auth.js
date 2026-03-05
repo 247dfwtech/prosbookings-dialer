@@ -1,9 +1,6 @@
 const express = require('express');
-const bcrypt = require('bcryptjs');
 const router = express.Router();
-const HASH = process.env.SITE_PASSWORD_HASH || '';
-// Built-in fallback so you can always get in with Caleb$771 from any browser
-const FALLBACK_HASH = '$2a$10$z.Ja6/zrRxADwOS/9QNHleDw0jCDwIq574VQgKhobTw.1PAMoTh3u';
+const { validateUser } = require('../lib/users');
 
 const LOGIN_RATE_WINDOW_MS = 15 * 60 * 1000;
 const LOGIN_RATE_MAX_ATTEMPTS = 5;
@@ -34,6 +31,11 @@ function requireAuth(req, res, next) {
   return res.redirect('/');
 }
 
+function requireAdmin(req, res, next) {
+  if (req.session && req.session.role === 'admin') return next();
+  return res.status(403).json({ error: 'Admin only' });
+}
+
 function isFormPost(req) {
   const ct = (req.headers['content-type'] || '').toLowerCase();
   return ct.includes('application/x-www-form-urlencoded');
@@ -60,30 +62,37 @@ router.post('/login', (req, res) => {
   }
 
   const body = req.body || {};
-  const raw = typeof body.password === 'string' ? body.password : '';
-  const password = normalizePassword(raw);
+  const rawUsername = typeof body.username === 'string' ? body.username.trim() : '';
+  const rawPassword = typeof body.password === 'string' ? body.password : '';
+  const password = normalizePassword(rawPassword);
+
+  if (!rawUsername) {
+    if (formPost) return res.redirect(302, '/?error=invalid');
+    return res.status(400).json({ error: 'Username required' });
+  }
   if (!password) {
-    console.log('[auth] login failed: no password. body keys=', body ? Object.keys(body) : 'none');
     if (formPost) return res.redirect(302, '/?error=invalid');
     return res.status(400).json({ error: 'Password required' });
   }
-  const literalMatch = password === 'Caleb$771';
-  const matchesEnv = HASH && bcrypt.compareSync(password, HASH);
-  const matchesFallback = bcrypt.compareSync(password, FALLBACK_HASH);
-  if (!literalMatch && !matchesEnv && !matchesFallback) {
+
+  const user = validateUser(rawUsername, password);
+  if (!user) {
     record.count += 1;
-    const codes = [...raw].map((c) => c.codePointAt(0));
-    console.log('[auth] login failed: len=', raw.length, 'normalizedLen=', password.length, 'charCodes=', codes.join(','));
+    console.log('[auth] login failed: username=', rawUsername);
     if (formPost) return res.redirect(302, '/?error=invalid');
-    return res.status(401).json({
-      error: 'Invalid password',
-      debug: { rawLength: raw.length, normalizedLength: password.length, charCodes: codes },
-    });
+    return res.status(401).json({ error: 'Invalid username or password' });
   }
+
   loginAttempts.delete(ip);
   req.session.authenticated = true;
+  req.session.username = user.username;
+  req.session.role = user.role;
+  req.session.dialerId = user.dialerId || null;
+
+  console.log(`[auth] login ok: ${user.username} (${user.role})`);
+
   if (formPost) return res.redirect(302, '/dashboard');
-  res.json({ ok: true });
+  res.json({ ok: true, role: user.role, dialerId: user.dialerId });
 });
 
 router.post('/logout', (req, res) => {
@@ -95,8 +104,17 @@ router.post('/logout', (req, res) => {
 });
 
 router.get('/check', (req, res) => {
-  res.json({ authenticated: !!(req.session && req.session.authenticated) });
+  if (!(req.session && req.session.authenticated)) {
+    return res.json({ authenticated: false });
+  }
+  res.json({
+    authenticated: true,
+    username: req.session.username || null,
+    role: req.session.role || 'admin',
+    dialerId: req.session.dialerId || null,
+  });
 });
 
 module.exports = router;
 module.exports.requireAuth = requireAuth;
+module.exports.requireAdmin = requireAdmin;
