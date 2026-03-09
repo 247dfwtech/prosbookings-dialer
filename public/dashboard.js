@@ -651,6 +651,7 @@
               <strong>${escapeHtml(u.username)}</strong>
               <span class="muted" style="margin-left:8px;">(${escapeHtml(u.dialerId)})</span>
               <button type="button" class="btn-secondary btn-subuser-settings" data-username="${escapeHtml(u.username)}" data-dialer-id="${escapeHtml(u.dialerId)}" style="margin-left:12px;">Subuser Settings</button>
+              ${u.embedToken ? `<button type="button" class="btn-secondary btn-copy-embed" data-token="${escapeHtml(u.embedToken)}" data-username="${escapeHtml(u.username)}" style="margin-left:8px;" title="Copy iframe embed code for ${escapeHtml(u.username)}">Copy Embed Code</button>` : ''}
               <button type="button" class="btn-danger btn-delete-subuser" data-username="${escapeHtml(u.username)}" style="margin-left:8px;">Delete</button>
               <div class="subuser-settings-panel" id="settings-panel-${escapeHtml(u.dialerId)}" style="display:none; margin-top:12px;"></div>
             </div>
@@ -681,6 +682,23 @@
         } catch (e) {
           alert(e.message || 'Delete failed');
         }
+      });
+    });
+
+    // Copy embed iframe code
+    document.querySelectorAll('.btn-copy-embed').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        const token = btn.dataset.token;
+        const username = btn.dataset.username;
+        const origin = window.location.origin;
+        const iframeCode = `<iframe src="${origin}/embed/${token}" width="340" height="220" frameborder="0" style="border-radius:12px;overflow:hidden;" title="${username} Dialer"></iframe>`;
+        navigator.clipboard.writeText(iframeCode).then(() => {
+          const orig = btn.textContent;
+          btn.textContent = 'Copied!';
+          setTimeout(() => { btn.textContent = orig; }, 2000);
+        }).catch(() => {
+          prompt('Copy this embed code:', iframeCode);
+        });
       });
     });
 
