@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Dialer</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    background: #0f1117;
+    color: #e2e8f0;
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 16px;
+  }
+  .widget {
+    background: #1a1f2e;
+    border: 1px solid #2d3748;
+    border-radius: 12px;
+    padding: 20px 24px;
+    width: 100%;
+    max-width: 320px;
+  }
+  .widget-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 16px;
+  }
+  .widget-title {
+    font-size: 14px;
+    font-weight: 600;
+    color: #a0aec0;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }
+  .status-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 3px 10px;
+    border-radius: 20px;
+    font-size: 12px;
+    font-weight: 600;
+  }
+  .status-dot {
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+  }
+  .badge-running { background: rgba(72,187,120,0.15); color: #48bb78; }
+  .badge-running .status-dot { background: #48bb78; animation: pulse 1.5s infinite; }
+  .badge-paused { background: rgba(237,137,54,0.15); color: #ed8936; }
+  .badge-paused .status-dot { background: #ed8936; }
+  .badge-stopped { background: rgba(113,128,150,0.15); color: #718096; }
+  .badge-stopped .status-dot { background: #718096; }
+  @keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.4; }
+  }
+  .stat-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 10px 0;
+    border-bottom: 1px solid #2d3748;
+  }
+  .stat-row:last-of-type { border-bottom: none; }
+  .stat-label { font-size: 13px; color: #718096; }
+  .stat-value { font-size: 15px; font-weight: 600; color: #e2e8f0; }
+  .btn-row {
+    display: flex;
+    gap: 8px;
+    margin-top: 16px;
+    flex-wrap: wrap;
+  }
+  .btn {
+    flex: 1;
+    min-width: 0;
+    padding: 9px 12px;
+    border: none;
+    border-radius: 8px;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: opacity 0.15s;
+  }
+  .btn:disabled { opacity: 0.4; cursor: not-allowed; }
+  .btn-start { background: #38a169; color: #fff; }
+  .btn-stop { background: #e53e3e; color: #fff; }
+  .btn-pause { background: #dd6b20; color: #fff; }
+  .btn-resume { background: #3182ce; color: #fff; }
+  .btn:not(:disabled):hover { opacity: 0.85; }
+  .error-msg { color: #fc8181; font-size: 12px; margin-top: 10px; text-align: center; }
+  .username-line { font-size: 15px; font-weight: 700; color: #e2e8f0; margin-bottom: 4px; }
+</style>
+</head>
+<body>
+<div class="widget" id="widget">
+  <div class="widget-header">
+    <div>
+      <div class="username-line" id="username-line">—</div>
+      <div class="widget-title">Dialer</div>
+    </div>
+    <span class="status-badge badge-stopped" id="status-badge">
+      <span class="status-dot"></span>
+      <span id="status-text">Stopped</span>
+    </span>
+  </div>
+
+  <div class="stat-row">
+    <span class="stat-label">Calls Today</span>
+    <span class="stat-value" id="calls-today">—</span>
+  </div>
+
+  <div class="btn-row" id="btn-row">
+    <button class="btn btn-start" id="btn-start" disabled>Start</button>
+    <button class="btn btn-stop" id="btn-stop" disabled>Stop</button>
+    <button class="btn btn-pause" id="btn-pause" style="display:none" disabled>Pause</button>
+    <button class="btn btn-resume" id="btn-resume" style="display:none" disabled>Resume</button>
+  </div>
+  <div class="error-msg" id="error-msg"></div>
+</div>
+
+<script>
+(function () {
+  // Extract token from URL path: /embed/TOKEN
+  const token = location.pathname.split('/').filter(Boolean).pop();
+  const base = '/api/embed/' + token;
+
+  const statusBadge = document.getElementById('status-badge');
+  const statusText = document.getElementById('status-text');
+  const callsToday = document.getElementById('calls-today');
+  const usernameLine = document.getElementById('username-line');
+  const btnStart = document.getElementById('btn-start');
+  const btnStop = document.getElementById('btn-stop');
+  const btnPause = document.getElementById('btn-pause');
+  const btnResume = document.getElementById('btn-resume');
+  const errorMsg = document.getElementById('error-msg');
+
+  function setStatus(running, paused) {
+    statusBadge.className = 'status-badge';
+    if (running && !paused) {
+      statusBadge.classList.add('badge-running');
+      statusText.textContent = 'Running';
+    } else if (running && paused) {
+      statusBadge.classList.add('badge-paused');
+      statusText.textContent = 'Paused';
+    } else {
+      statusBadge.classList.add('badge-stopped');
+      statusText.textContent = 'Stopped';
+    }
+
+    btnStart.disabled = running;
+    btnStop.disabled = !running;
+
+    if (running) {
+      btnPause.style.display = paused ? 'none' : '';
+      btnResume.style.display = paused ? '' : 'none';
+      btnPause.disabled = false;
+      btnResume.disabled = false;
+    } else {
+      btnPause.style.display = 'none';
+      btnResume.style.display = 'none';
+    }
+  }
+
+  async function fetchState() {
+    try {
+      const res = await fetch(base + '/state');
+      if (!res.ok) { errorMsg.textContent = 'Error loading state'; return; }
+      const data = await res.json();
+      errorMsg.textContent = '';
+      usernameLine.textContent = data.username || '';
+      callsToday.textContent = data.callsPlacedToday ?? 0;
+      setStatus(data.running, data.paused);
+    } catch (e) {
+      errorMsg.textContent = 'Connection error';
+    }
+  }
+
+  async function action(endpoint) {
+    errorMsg.textContent = '';
+    try {
+      const res = await fetch(base + '/' + endpoint, { method: 'POST' });
+      if (!res.ok) { const d = await res.json().catch(() => ({})); errorMsg.textContent = d.error || 'Action failed'; return; }
+      await fetchState();
+    } catch (e) {
+      errorMsg.textContent = 'Connection error';
+    }
+  }
+
+  btnStart.addEventListener('click', () => action('start'));
+  btnStop.addEventListener('click', () => action('stop'));
+  btnPause.addEventListener('click', () => action('pause'));
+  btnResume.addEventListener('click', () => action('resume'));
+
+  fetchState();
+  setInterval(fetchState, 10000);
+})();
+</script>
+</body>
+</html>

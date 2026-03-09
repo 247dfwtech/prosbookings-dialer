@@ -37,6 +37,7 @@ const dialerRouter = require('./routes/dialer');
 const uploadRouter = require('./routes/upload');
 const webhooksRouter = require('./routes/webhooks');
 const adminRouter = require('./routes/admin');
+const embedRouter = require('./routes/embed');
 const { requireAuth, requireAdmin } = require('./routes/auth');
 
 const app = express();
@@ -87,6 +88,8 @@ app.use('/api/auth', authRouter);
 app.use('/api/dialer', requireAuth, dialerRouter);
 app.use('/api/upload', requireAuth, uploadRouter);
 app.use('/api/admin', requireAuth, requireAdmin, adminRouter);
+// Embed routes — token-authenticated, no session required (mounted at root for full path control)
+app.use('/', embedRouter);
 app.use(express.static(path.join(__dirname, 'public')));
 
 app.get('/dashboard', requireAuth, (req, res) => {
