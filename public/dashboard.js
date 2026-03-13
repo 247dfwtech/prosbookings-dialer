@@ -816,9 +816,14 @@
       if (phoneLookupResult) phoneLookupResult.innerHTML = matches.map((m) => {
         const name = [m.firstName, m.lastName].filter(Boolean).join(' ') || '—';
         const address = [m.address, m.city, m.zip].filter(Boolean).join(', ') || '—';
+        const hasAddress = [m.address, m.city, m.zip].some(Boolean);
+        const roofImg = hasAddress
+          ? `<div class="phone-lookup-roof"><img src="https://maps.googleapis.com/maps/api/staticmap?center=${encodeURIComponent(address)}&zoom=20&size=600x400&maptype=satellite&key=AIzaSyDmu2OfMRQiztQqFqJ46AlS5qc59gO6JBc" alt="Roof view of ${escapeHtml(address)}" loading="lazy"></div>`
+          : '';
         return `<div class="phone-lookup-card">
           <div class="phone-lookup-name">${escapeHtml(name)}</div>
           <div class="phone-lookup-address">${escapeHtml(address)}</div>
+          ${roofImg}
           <div class="phone-lookup-spreadsheet">Found in: ${escapeHtml(m.spreadsheetName)}</div>
         </div>`;
       }).join('');

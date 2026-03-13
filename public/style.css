@@ -459,6 +459,19 @@ body > * {
   margin-bottom: 0.5rem;
 }
 
+.phone-lookup-roof {
+  margin: 0.75rem 0;
+  border-radius: var(--radius);
+  overflow: hidden;
+  border: 1px solid var(--clown-purple);
+}
+
+.phone-lookup-roof img {
+  width: 100%;
+  height: auto;
+  display: block;
+}
+
 .phone-lookup-spreadsheet {
   font-size: 0.85rem;
   color: var(--text-dim);
